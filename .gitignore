@@ -1,0 +1,10 @@
+index
+*.o
+*.out
+*.exe
+
+*.dSYM/
+
+.vscode/
+
+.DS_Store
