@@ -21,9 +21,15 @@ void desenhaCenario(const int m[][TAM], int n, int orientacao);
 void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoes);
 void localizaJogador(const int m[][TAM], int n, int &px, int &py);
 void moveJogador(int m[][TAM], int n, int &px, int &py, int &celulaSobJogador, char tecla,  int orientacao);
-bool jogadorVenceu(const int m[][TAM], int n, int px, int py);
+bool jogadorVenceu(int celulaSobJogador);
 bool portaEstaFechada(int celula, int orientacao);
 bool celulaEhAtravessavel(const int m[][TAM], int n, int lin, int col, int orientacao);
+void giraDireita(const int origem[][TAM], int destino[][TAM], int n);
+void giraEsquerda(const int origem[][TAM], int destino[][TAM], int n);
+bool estaSobreAlavanca(int celulaSobJogador);
+void giraCenario(int m[][TAM], int n, int &orientacao, char tecla);
+bool celulaSustentaBloco(const int m[][TAM], int n, int lin, int col, int orientacao);
+void aplicaGravidade(int m[][TAM], int n, int orientacao);
 
 char leTecla()
 {
@@ -52,7 +58,7 @@ void carregaMapa(int m[][TAM], int n, int numeroDoMapa)
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
         {1, 0, 1, 0, 1, 0, 1, 6, 1, 0, 1},
-        {1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1},
+        {1, 0, 1, 3, 0, 0, 0, 0, 1, 0, 1},
         {1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1},
         {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1},
         {1, 1, 1, 1, 1, 0, 1, 7, 1, 0, 1},
@@ -108,11 +114,10 @@ void desenhaCenario(const int m[][TAM], int n, int orientacao)
                 simbolo = 'S';
                 break;
             case PORTA_A:
-                simbolo = portaEstaFechada(m[i][j], orientacao) ? '=' : '.';
+                simbolo = portaEstaFechada(m[i][j], orientacao) ? '=' : ':';
                 break;
             case PORTA_B:
-                simbolo = portaEstaFechada(m[i][j], orientacao) ? '|' : '.';
-                break;
+                simbolo = portaEstaFechada(m[i][j], orientacao) ? '|' : ';';
                 break;
             default:
                 simbolo = '?';
@@ -183,6 +188,69 @@ bool estaSobreAlavanca(int celulaSobJogador)
     return celulaSobJogador == ALAVANCA;
 }
 
+void giraCenario(int m[][TAM], int n, int &orientacao, char tecla)
+{
+    int auxiliar[TAM][TAM];
+
+    if (tecla == 'e')
+    {
+        giraDireita(m, auxiliar, n);
+        orientacao = (orientacao + 90) % 360;
+    }
+    else
+    {
+        giraEsquerda(m, auxiliar, n);
+        orientacao = (orientacao + 270) % 360;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            m[i][j] = auxiliar[i][j];
+        }
+    }
+
+    aplicaGravidade(m, n, orientacao);
+}
+
+bool celulaSustentaBloco(const int m[][TAM], int n, int lin, int col, int orientacao)
+{
+    if (lin < 0 || lin >= n || col < 0 || col >= n)
+    {
+        return true;
+    }
+
+    int valor = m[lin][col];
+
+    if (valor == PORTA_A || valor == PORTA_B)
+    {
+        return portaEstaFechada(valor, orientacao);
+    }
+
+    return valor == PAREDE || valor == BLOCO || valor == JOGADOR || valor == ALAVANCA || valor == SAIDA;
+}
+
+void aplicaGravidade(int m[][TAM], int n, int orientacao)
+{
+    for (int i = n - 2; i >= 0; i--)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            if (m[i][j] == BLOCO)
+            {
+                int lin = i;
+
+                while (!celulaSustentaBloco(m, n, lin + 1, j, orientacao))
+                {
+                    m[lin][j] = VAZIO;
+                    m[lin + 1][j] = BLOCO;
+                    lin++;
+                }
+            }
+        }
+    }
+}
 
 bool celulaEhAtravessavel(const int m[][TAM], int n, int lin, int col, int orientacao) {
     if (lin < 0 || lin >= n || col < 0 || col >= n) {
@@ -248,27 +316,7 @@ int main()
         {
             if (estaSobreAlavanca(celulaSobJogador))
             {
-                int auxiliar[TAM][TAM];
-
-                if (tecla == 'e')
-                {
-                    giraDireita(cenario, auxiliar, TAM);
-                    orientacao = (orientacao + 90) % 360;
-                }
-                else
-                {
-                    giraEsquerda(cenario, auxiliar, TAM);
-                    orientacao = (orientacao + 270) % 360;
-                }
-
-                for (int i = 0; i < TAM; i++)
-                {
-                    for (int j = 0; j < TAM; j++)
-                    {
-                        cenario[i][j] = auxiliar[i][j];
-                    }
-                }
-
+                giraCenario(cenario, TAM, orientacao, tecla);
                 localizaJogador(cenario, TAM, px, py);
                 rotacoes++;
             }
