@@ -20,9 +20,10 @@ void carregaMapa(int m[][TAM], int n, int numeroDoMapa);
 void desenhaCenario(const int m[][TAM], int n, int orientacao);
 void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoes);
 void localizaJogador(const int m[][TAM], int n, int &px, int &py);
-bool celulaEhAtravessavel(const int m[][TAM], int n, int lin, int col);
-void moveJogador(int m[][TAM], int n, int &px, int &py, char tecla);
+void moveJogador(int m[][TAM], int n, int &px, int &py, int &celulaSobJogador, char tecla,  int orientacao);
 bool jogadorVenceu(const int m[][TAM], int n, int px, int py);
+bool portaEstaFechada(int celula, int orientacao);
+bool celulaEhAtravessavel(const int m[][TAM], int n, int lin, int col, int orientacao);
 
 char leTecla()
 {
@@ -50,11 +51,11 @@ void carregaMapa(int m[][TAM], int n, int numeroDoMapa)
     int mapaTeste[TAM][TAM] = {
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
-        {1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1},
+        {1, 0, 1, 0, 1, 0, 1, 6, 1, 0, 1},
         {1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1},
         {1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1},
         {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1},
-        {1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1},
+        {1, 1, 1, 1, 1, 0, 1, 7, 1, 0, 1},
         {1, 4, 0, 0, 1, 0, 0, 0, 0, 0, 1},
         {1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1},
         {1, 2, 0, 0, 0, 0, 0, 0, 0, 5, 1},
@@ -67,6 +68,16 @@ void carregaMapa(int m[][TAM], int n, int numeroDoMapa)
             m[i][j] = mapaTeste[i][j];
         }
     }
+}
+
+bool portaEstaFechada(int celula, int orientacao) {
+    if (celula == PORTA_A) {
+        return orientacao == 0 || orientacao == 180;
+    }
+    if (celula == PORTA_B) {
+        return orientacao == 90 || orientacao == 270;
+    }
+    return false;
 }
 
 void desenhaCenario(const int m[][TAM], int n, int orientacao)
@@ -97,10 +108,11 @@ void desenhaCenario(const int m[][TAM], int n, int orientacao)
                 simbolo = 'S';
                 break;
             case PORTA_A:
-                simbolo = '=';
+                simbolo = portaEstaFechada(m[i][j], orientacao) ? '=' : '.';
                 break;
             case PORTA_B:
-                simbolo = '|';
+                simbolo = portaEstaFechada(m[i][j], orientacao) ? '|' : '.';
+                break;
                 break;
             default:
                 simbolo = '?';
@@ -111,6 +123,8 @@ void desenhaCenario(const int m[][TAM], int n, int orientacao)
         cout << endl;
     }
 }
+
+
 
 void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoes)
 {
@@ -136,39 +150,6 @@ void localizaJogador(const int m[][TAM], int n, int &px, int &py)
     }
 }
 
-bool celulaEhAtravessavel(const int m[][TAM], int n, int lin, int col)
-{
-    if (lin < 0 || lin >= n || col < 0 || col >= n)
-    {
-        return false;
-    }
-    int valor = m[lin][col];
-    return valor == VAZIO || valor == ALAVANCA || valor == SAIDA;
-}
-
-void moveJogador(int m[][TAM], int n, int &px, int &py, int &celulaSobJogador, char tecla)
-{
-    int novoLin = px;
-    int novoCol = py;
-
-    if (tecla == 'w')
-        novoLin = px - 1;
-    else if (tecla == 's')
-        novoLin = px + 1;
-    else if (tecla == 'a')
-        novoCol = py - 1;
-    else if (tecla == 'd')
-        novoCol = py + 1;
-
-    if (celulaEhAtravessavel(m, n, novoLin, novoCol))
-    {
-        m[px][py] = celulaSobJogador;
-        celulaSobJogador = m[novoLin][novoCol];
-        m[novoLin][novoCol] = JOGADOR;
-        px = novoLin;
-        py = novoCol;
-    }
-}
 
 bool jogadorVenceu(int celulaSobJogador)
 {
@@ -202,6 +183,38 @@ bool estaSobreAlavanca(int celulaSobJogador)
     return celulaSobJogador == ALAVANCA;
 }
 
+
+bool celulaEhAtravessavel(const int m[][TAM], int n, int lin, int col, int orientacao) {
+    if (lin < 0 || lin >= n || col < 0 || col >= n) {
+        return false;
+    }
+    int valor = m[lin][col];
+    if (valor == PORTA_A || valor == PORTA_B) {
+        return !portaEstaFechada(valor, orientacao);
+    }
+    return valor == VAZIO || valor == ALAVANCA || valor == SAIDA;
+}
+
+void moveJogador(int m[][TAM], int n, int &px, int &py, int &celulaSobJogador, char tecla, int orientacao)
+{
+    int novoLin = px;
+    int novoCol = py;
+
+    if (tecla == 'w') novoLin = px - 1;
+    else if (tecla == 's') novoLin = px + 1;
+    else if (tecla == 'a') novoCol = py - 1;
+    else if (tecla == 'd') novoCol = py + 1;
+
+    if (celulaEhAtravessavel(m, n, novoLin, novoCol, orientacao))
+    {
+        m[px][py] = celulaSobJogador;
+        celulaSobJogador = m[novoLin][novoCol];
+        m[novoLin][novoCol] = JOGADOR;
+        px = novoLin;
+        py = novoCol;
+    }
+}
+
 int main()
 {
     int cenario[TAM][TAM];
@@ -227,7 +240,7 @@ int main()
 
         if (tecla == 'w' || tecla == 'a' || tecla == 's' || tecla == 'd')
         {
-            moveJogador(cenario, TAM, px, py, celulaSobJogador, tecla);
+            moveJogador(cenario, TAM, px, py, celulaSobJogador, tecla, orientacao);
             movimentos++;
         }
 
