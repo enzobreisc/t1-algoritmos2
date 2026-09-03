@@ -112,7 +112,7 @@ bool celulaEhAtravessavel(const int m[][TAM], int n, int lin, int col) {
     return valor == VAZIO || valor == ALAVANCA || valor == SAIDA;
 }
 
-void moveJogador(int m[][TAM], int n, int &px, int &py, char tecla) {
+void moveJogador(int m[][TAM], int n, int &px, int &py, int &celulaSobJogador, char tecla) {
     int novoLin = px;
     int novoCol = py;
 
@@ -122,15 +122,16 @@ void moveJogador(int m[][TAM], int n, int &px, int &py, char tecla) {
     else if (tecla == 'd') novoCol = py + 1;
 
     if (celulaEhAtravessavel(m, n, novoLin, novoCol)) {
-        m[px][py] = VAZIO;
+        m[px][py] = celulaSobJogador;        
+        celulaSobJogador = m[novoLin][novoCol]; 
         m[novoLin][novoCol] = JOGADOR;
         px = novoLin;
         py = novoCol;
     }
 }
 
-bool jogadorVenceu(const int m[][TAM], int n, int px, int py) {
-    return false;
+bool jogadorVenceu(int celulaSobJogador) {
+    return celulaSobJogador == SAIDA;
 }
 
 int main() {
@@ -139,6 +140,7 @@ int main() {
     int px, py;
     int movimentos = 0;
     int numeroDoMapa = 1;
+    int celulaSobJogador = VAZIO;
 
     carregaMapa(cenario, TAM, numeroDoMapa);
     localizaJogador(cenario, TAM, px, py);
@@ -152,13 +154,17 @@ int main() {
         char tecla = leTecla();
 
         if (tecla == 'w' || tecla == 'a' || tecla == 's' || tecla == 'd') {
-            moveJogador(cenario, TAM, px, py, tecla);
+            moveJogador(cenario, TAM, px, py, celulaSobJogador ,tecla);
             movimentos++;
         } else if (tecla == 'x') {
             jogando = false;
         }
 
-        if (jogadorVenceu(cenario, TAM, px, py)) {
+        if (jogadorVenceu(celulaSobJogador)) {
+            limpaTela();
+            desenhaStatus(numeroDoMapa, orientacao, movimentos);
+            desenhaCenario(cenario, TAM, orientacao);
+            cout << "Parabéns! Você venceu!" << endl;
             jogando = false;
         }
     }
