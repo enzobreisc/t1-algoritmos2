@@ -50,7 +50,7 @@ void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoe
 void localizaJogador(const int ocupante[][TAM], int n, int &px, int &py);
 bool portaEstaFechada(int celula, int orientacao);
 bool celulaEhAtravessavel(const int terreno[][TAM], const int ocupante[][TAM], int n, int lin, int col, int orientacao);
-void moveJogador(int terreno[][TAM], int ocupante[][TAM], int n, int &px, int &py, char tecla, int orientacao);
+bool moveJogador(int terreno[][TAM], int ocupante[][TAM], int n, int &px, int &py, char tecla, int orientacao);
 bool jogadorVenceu(const int terreno[][TAM], int px, int py);
 bool estaSobreAlavanca(const int terreno[][TAM], int px, int py);
 void giraDireita(const int origem[][TAM], int destino[][TAM], int n);
@@ -136,57 +136,47 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
-    // Etapa 9 - mapa oficial 1: a solucao depende de um bloco caindo pra abrir
-    // passagem. Sem girar, o bloco em pe bloqueia o unico caminho ate a saida.
-    // Sequencia que resolve: w e a s s s s a
+    // MAPA 3 - bloco precisa cair para liberar a passagem.
     int mapaBlocoCai[TAM][TAM] = {
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 2, 0, 3, 0, 0, 0, 1, 1, 1, 1},
-        {1, 1, 1, 1, 0, 5, 0, 1, 1, 1, 1},
-        {1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
+        {1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,0,0,1,0,0,0,0,0,1},
+        {1,1,0,0,0,0,0,1,0,0,1},
+        {1,0,0,0,0,0,0,1,0,1,1},
+        {1,0,1,1,0,0,0,0,1,0,1},
+        {1,0,1,0,0,0,0,1,0,5,1},
+        {1,2,0,0,1,0,3,0,0,1,1},
+        {1,0,0,0,4,1,0,0,0,0,1},
+        {1,0,0,1,0,0,1,0,0,0,1},
+        {1,1,0,0,0,0,0,0,0,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1}};
 
-    // Etapa 9 - mapa oficial 2: a solucao depende de uma porta que some com a
-    // rotacao. Porta A fechada em 0 graus bloqueia o corredor; girar uma vez
-    // (90 graus) abre a porta A e libera o caminho ate a saida.
-    // Sequencia que resolve: w e a s s s s s s s s s
+    // MAPA 4 - porta A muda de estado com a rotacao.
     int mapaPortaSome[TAM][TAM] = {
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 2, 0, 0, 0, 6, 0, 0, 0, 5, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
+        {1,1,1,1,1,1,1,1,1,1,1},
+        {1,0,0,0,0,0,0,1,0,1,1},
+        {1,0,1,0,0,1,0,1,0,4,1},
+        {1,0,1,0,0,0,0,1,0,1,1},
+        {1,0,0,0,0,1,0,4,0,0,1},
+        {1,0,1,0,0,1,1,1,0,0,1},
+        {1,0,0,5,0,6,0,0,0,0,1},
+        {1,0,0,0,1,1,1,0,0,0,1},
+        {1,0,1,1,1,2,0,0,0,0,1},
+        {1,1,0,0,0,1,0,0,0,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1}};
 
-    // Etapa 9 - mapa oficial 3: a solucao exige 2 ou mais rotacoes. Porta A
-    // (fechada em 0/180) e porta B (fechada em 90/270) nunca ficam abertas ao
-    // mesmo tempo: gira 1x pra abrir a porta A e alcancar a segunda alavanca,
-    // gira de novo (90 -> 180) pra fechar a porta A (ja atravessada) e abrir a
-    // porta B, so entao a saida fica alcancavel.
-    // Sequencia que resolve: w e a s s s s d e w a a a a
+    // MAPA 5 - exige duas ou mais rotacoes e usa portas A e B.
     int mapaDuasRotacoes[TAM][TAM] = {
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 4, 1, 1, 1, 4, 1, 1, 1, 1, 1},
-        {1, 2, 0, 6, 0, 0, 0, 7, 0, 5, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
+        {1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,0,0,0,1,1,1,1,1,1},
+        {1,1,0,0,0,1,1,1,1,1,1},
+        {1,4,0,0,1,4,1,1,1,1,1},
+        {1,2,0,6,0,0,0,7,0,5,1},
+        {1,1,0,0,0,1,1,1,1,1,1},
+        {1,1,0,0,1,1,1,1,1,1,1},
+        {1,1,0,0,0,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1}};
 
     switch (numeroDoMapa)
     {
@@ -407,35 +397,31 @@ bool celulaEhAtravessavel(const int terreno[][TAM], const int ocupante[][TAM], i
     return valorTerreno == VAZIO || valorTerreno == ALAVANCA || valorTerreno == SAIDA;
 }
 
-void moveJogador(int terreno[][TAM], int ocupante[][TAM], int n, int &px, int &py, char tecla, int orientacao)
+bool moveJogador(int terreno[][TAM], int ocupante[][TAM], int n, int &px, int &py, char tecla, int orientacao)
 {
     int novoLin = px;
     int novoCol = py;
 
     if (tecla == 'w')
-    {
         novoLin = px - 1;
-    }
     else if (tecla == 's')
-    {
         novoLin = px + 1;
-    }
     else if (tecla == 'a')
-    {
         novoCol = py - 1;
-    }
     else if (tecla == 'd')
-    {
         novoCol = py + 1;
-    }
+    else
+        return false;
 
-    if (celulaEhAtravessavel(terreno, ocupante, n, novoLin, novoCol, orientacao))
-    {
-        ocupante[px][py] = VAZIO;
-        ocupante[novoLin][novoCol] = JOGADOR;
-        px = novoLin;
-        py = novoCol;
-    }
+    if (!celulaEhAtravessavel(terreno, ocupante, n, novoLin, novoCol, orientacao))
+        return false;
+
+    ocupante[px][py] = VAZIO;
+    ocupante[novoLin][novoCol] = JOGADOR;
+    px = novoLin;
+    py = novoCol;
+
+    return true;
 }
 
 bool celulaSustentaBloco(const int terreno[][TAM], const int ocupante[][TAM], int n, int lin, int col, int orientacao)
@@ -457,7 +443,7 @@ bool celulaSustentaBloco(const int terreno[][TAM], const int ocupante[][TAM], in
         return portaEstaFechada(valorTerreno, orientacao);
     }
 
-    return valorTerreno == PAREDE || valorTerreno == ALAVANCA || valorTerreno == SAIDA;
+    return valorTerreno == PAREDE;
 }
 
 void aplicaGravidade(const int terreno[][TAM], int ocupante[][TAM], int n, int orientacao)
@@ -588,8 +574,8 @@ void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
 
         if (tecla == 'w' || tecla == 'a' || tecla == 's' || tecla == 'd')
         {
-            moveJogador(terreno, ocupante, n, px, py, tecla, orientacao);
-            movimentos++;
+            if (moveJogador(terreno, ocupante, n, px, py, tecla, orientacao))
+                movimentos++;
         }
         else if (tecla == 'q' || tecla == 'e')
         {
