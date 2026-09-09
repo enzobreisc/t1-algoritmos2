@@ -1,9 +1,12 @@
 #include <iostream>
 #include <termios.h>
 #include <unistd.h>
+#include <cstdlib>
+#include <ctime>
 using namespace std;
 
 #define TAM 11
+#define NUM_MAPAS 2
 
 #define VAZIO 0
 #define PAREDE 1
@@ -36,7 +39,11 @@ using namespace std;
 
 char leTecla();
 void limpaTela();
+void separaTerrenoEOcupante(const int mapa[][TAM], int terreno[][TAM], int ocupante[][TAM], int n);
 void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa);
+void exibeMenu(bool jogoEmAndamento);
+void exibeSobre();
+int escolheMapa(int totalMapas);
 void desenhaCenario(const int terreno[][TAM], const int ocupante[][TAM], int n, int orientacao);
 void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoes);
 void localizaJogador(const int ocupante[][TAM], int n, int &px, int &py);
@@ -74,10 +81,30 @@ void limpaTela()
     cout << "\033[2J\033[1;1H";
 }
 
+void separaTerrenoEOcupante(const int mapa[][TAM], int terreno[][TAM], int ocupante[][TAM], int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            int valor = mapa[i][j];
+            if (valor == JOGADOR || valor == BLOCO)
+            {
+                ocupante[i][j] = valor;
+                terreno[i][j] = VAZIO;
+            }
+            else
+            {
+                ocupante[i][j] = VAZIO;
+                terreno[i][j] = valor;
+            }
+        }
+    }
+}
+
 void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa)
 {
-    
-    int mapaTeste[TAM][TAM] = {
+    int mapa1[TAM][TAM] = {
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
@@ -90,22 +117,33 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
-    for (int i = 0; i < n; i++)
+    // Mapa de teste do esmagamento (Etapa 6 / Exemplo 2 do enunciado):
+    // bloco parado sobre porta A fechada; 2x E abre a porta (bloco cai e fica sobre
+    // ela, agora aberta) e fecha de novo (bloco esmagado). Nao e um dos 3 mapas da
+    // Etapa 9, so serve pra validar resolveEsmagamento isoladamente.
+    int mapa2[TAM][TAM] = {
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 2, 4, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 3, 6, 1, 0, 0, 0, 0, 1},
+        {1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
+
+    // Etapa 9 entra aqui: mapa3 + mais um case, NUM_MAPAS sobe junto.
+    switch (numeroDoMapa)
     {
-        for (int j = 0; j < n; j++)
-        {
-            int valor = mapaTeste[i][j];
-            if (valor == JOGADOR || valor == BLOCO)
-            {
-                ocupante[i][j] = valor;
-                terreno[i][j] = VAZIO;
-            }
-            else
-            {
-                ocupante[i][j] = VAZIO;
-                terreno[i][j] = valor;
-            }
-        }
+    case 2:
+        separaTerrenoEOcupante(mapa2, terreno, ocupante, n);
+        break;
+    case 1:
+    default:
+        separaTerrenoEOcupante(mapa1, terreno, ocupante, n);
+        break;
     }
 }
 
@@ -178,6 +216,66 @@ void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoe
     cout << "  Orientacao: " << orientacao;
     cout << "  Movimentos: " << movimentos;
     cout << "  Rotacoes: " << rotacoes << endl;
+}
+
+void exibeMenu(bool jogoEmAndamento)
+{
+    limpaTela();
+    cout << "===== LABIRINTO GIRATORIO =====" << endl;
+    cout << "[N] Novo jogo" << endl;
+    if (jogoEmAndamento)
+    {
+        cout << "[C] Continuar" << endl;
+    }
+    cout << "[S] Sobre" << endl;
+    cout << "[F] Fim" << endl;
+    cout << "> ";
+}
+
+void exibeSobre()
+{
+    limpaTela();
+    cout << "===== SOBRE =====" << endl;
+    cout << "Equipe: Bruno Naressi, Enzo Breichatt" << endl;
+    cout << "Mes/Ano: Setembro de 2026" << endl;
+    cout << "Disciplina: Algoritmos e Programacao II (22817)" << endl;
+    cout << "Professor: Tiago Felski" << endl;
+    cout << endl;
+    cout << "Regras:" << endl;
+    cout << " W/A/S/D  - move o jogador uma celula por vez" << endl;
+    cout << " Q/E      - gira o cenario (anti-horario/horario), so sobre uma alavanca" << endl;
+    cout << " R        - reinicia a fase atual" << endl;
+    cout << " ESC      - volta ao menu, preservando o jogo para Continuar" << endl;
+    cout << endl;
+    cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
+    leTecla();
+}
+
+int escolheMapa(int totalMapas)
+{
+    cout << "Novo jogo - mapa especifico ou aleatorio? (E/A): ";
+    char tecla = leTecla();
+    cout << endl;
+
+    if (tecla == 'a')
+    {
+        return (rand() % totalMapas) + 1;
+    }
+
+    int escolhido;
+    do
+    {
+        cout << "Escolha o mapa (1 a " << totalMapas << "): ";
+        cin >> escolhido;
+        if (cin.fail())
+        {
+            cin.clear();
+            escolhido = 0;
+        }
+        cin.ignore(10000, '\n');
+    } while (escolhido < 1 || escolhido > totalMapas);
+
+    return escolhido;
 }
 
 void localizaJogador(const int ocupante[][TAM], int n, int &px, int &py)
@@ -385,67 +483,103 @@ int main()
     int movimentos;
     int numeroDoMapa = 1;
     int rotacoes;
-    bool jogoPerdido;
+    bool jogoPerdido = false;
     bool jogoVencido = false;
+    bool jogoEmAndamento = false;
 
-    reiniciaFase(terreno, ocupante, TAM, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido);
+    srand((unsigned int)time(nullptr));
 
-    bool jogando = true;
-    while (jogando)
+    bool executando = true;
+    while (executando)
     {
-        limpaTela();
-        desenhaStatus(numeroDoMapa, orientacao, movimentos, rotacoes);
-        desenhaCenario(terreno, ocupante, TAM, orientacao);
+        exibeMenu(jogoEmAndamento);
+        char opcao = leTecla();
 
-        if (jogoPerdido)
+        bool jogar = false;
+
+        if (opcao == 'f')
         {
-            cout << "Voce foi esmagado pela porta! Fase perdida." << endl;
-            cout << "Pressione R para reiniciar ou X para sair." << endl;
+            executando = false;
         }
-        else if (jogoVencido)
+        else if (opcao == 's')
         {
-            cout << "Parabens! Voce venceu!" << endl;
-            cout << "Pressione R para jogar novamente ou X para sair." << endl;
+            exibeSobre();
         }
-
-        char tecla = leTecla();
-
-        if (tecla == 'r')
+        else if (opcao == 'n')
         {
+            numeroDoMapa = escolheMapa(NUM_MAPAS);
             reiniciaFase(terreno, ocupante, TAM, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido);
             jogoVencido = false;
+            jogoEmAndamento = true;
+            jogar = true;
+        }
+        else if (opcao == 'c' && jogoEmAndamento)
+        {
+            jogar = true;
+        }
+
+        if (!jogar)
+        {
             continue;
         }
 
-        if (tecla == 'x')
+        bool jogando = true;
+        while (jogando)
         {
-            jogando = false;
-            continue;
-        }
+            limpaTela();
+            desenhaStatus(numeroDoMapa, orientacao, movimentos, rotacoes);
+            desenhaCenario(terreno, ocupante, TAM, orientacao);
 
-        if (jogoPerdido || jogoVencido)
-        {
-            continue; 
-        }
-
-        if (tecla == 'w' || tecla == 'a' || tecla == 's' || tecla == 'd')
-        {
-            moveJogador(terreno, ocupante, TAM, px, py, tecla, orientacao);
-            movimentos++;
-        }
-        else if (tecla == 'q' || tecla == 'e')
-        {
-            if (estaSobreAlavanca(terreno, px, py))
+            if (jogoPerdido)
             {
-                giraCenario(terreno, ocupante, TAM, orientacao, tecla, jogoPerdido);
-                localizaJogador(ocupante, TAM, px, py);
-                rotacoes++;
+                cout << "Voce foi esmagado pela porta! Fase perdida." << endl;
+                cout << "Pressione R para reiniciar ou ESC para voltar ao menu." << endl;
             }
-        }
+            else if (jogoVencido)
+            {
+                cout << "Parabens! Voce venceu!" << endl;
+                cout << "Pressione R para jogar novamente ou ESC para voltar ao menu." << endl;
+            }
 
-        if (!jogoPerdido && jogadorVenceu(terreno, px, py))
-        {
-            jogoVencido = true;
+            char tecla = leTecla();
+
+            if (tecla == 27) // ESC
+            {
+                jogando = false;
+                continue;
+            }
+
+            if (tecla == 'r')
+            {
+                reiniciaFase(terreno, ocupante, TAM, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido);
+                jogoVencido = false;
+                continue;
+            }
+
+            if (jogoPerdido || jogoVencido)
+            {
+                continue;
+            }
+
+            if (tecla == 'w' || tecla == 'a' || tecla == 's' || tecla == 'd')
+            {
+                moveJogador(terreno, ocupante, TAM, px, py, tecla, orientacao);
+                movimentos++;
+            }
+            else if (tecla == 'q' || tecla == 'e')
+            {
+                if (estaSobreAlavanca(terreno, px, py))
+                {
+                    giraCenario(terreno, ocupante, TAM, orientacao, tecla, jogoPerdido);
+                    localizaJogador(ocupante, TAM, px, py);
+                    rotacoes++;
+                }
+            }
+
+            if (!jogoPerdido && jogadorVenceu(terreno, px, py))
+            {
+                jogoVencido = true;
+            }
         }
     }
 
