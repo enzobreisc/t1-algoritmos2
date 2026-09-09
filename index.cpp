@@ -288,7 +288,7 @@ void exibeSobre()
 {
     limpaTela();
     cout << "===== SOBRE =====" << endl;
-    cout << "Equipe: Bruno Naressi, Enzo Breichatt" << endl;
+    cout << "Equipe: Bruno Naressi, Enzo Breischatt" << endl;
     cout << "Mes/Ano: Setembro de 2026" << endl;
     cout << "Disciplina: Algoritmos e Programacao II (22817)" << endl;
     cout << "Professor: Tiago Felski" << endl;
