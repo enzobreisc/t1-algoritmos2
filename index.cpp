@@ -18,25 +18,6 @@ using namespace std;
 #define PORTA_A 6
 #define PORTA_B 7
 
-/*
- * DECISAO DE PROJETO (Desafio: "como representar duas coisas na mesma celula"):
- *
- * O cenario passou a ser representado por DUAS matrizes paralelas, em vez de uma so:
- *
- *   - terreno[][]  -> o que e FIXO do cenario: parede, vazio, alavanca, saida, porta A/B.
- *                     So muda quando o cenario gira (nunca e alterado pela gravidade).
- *   - ocupante[][] -> o que se MOVE por cima do terreno: jogador ou bloco (ou VAZIO,
- *                     se a celula nao tem ocupante). E o que a gravidade movimenta.
- *
- * Isso resolve de forma direta os casos de duas coisas na mesma celula:
- *   - jogador sobre a alavanca  -> ocupante=JOGADOR, terreno=ALAVANCA
- *   - bloco sobre uma porta aberta -> ocupante=BLOCO, terreno=PORTA_A/B
- *   - jogador na saida           -> ocupante=JOGADOR, terreno=SAIDA
- *
- * E, principalmente, resolve o problema do ESMAGAMENTO: como o valor da porta em
- * terreno[][] nunca e sobrescrito pelo bloco, ao girar o cenario da para checar,
- * depois da rotacao, se uma porta ficou fechada exatamente onde ha um ocupante.
- */
 
 char leTecla();
 void limpaTela();
