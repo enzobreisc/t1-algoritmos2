@@ -106,6 +106,7 @@ void separaTerrenoEOcupante(const int mapa[][TAM], int terreno[][TAM], int ocupa
 
 void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa)
 {
+    // Sequencia para vencer: W, Q, D, W, W, W, W, W, W, D, D
     int mapa1[TAM][TAM] = {
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
@@ -119,10 +120,8 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
-    // Mapa de teste do esmagamento (Etapa 6 / Exemplo 2 do enunciado):
-    // bloco parado sobre porta A fechada; 2x E abre a porta (bloco cai e fica sobre
-    // ela, agora aberta) e fecha de novo (bloco esmagado). Nao e um dos 3 mapas da
-    // Etapa 9, so serve pra validar resolveEsmagamento isoladamente.
+
+    // Sequencia para vencer: W
     int mapa2[TAM][TAM] = {
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -137,6 +136,7 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
     // MAPA 3 - bloco precisa cair para liberar a passagem.
+    // Sequencia para vencer: S, S, D, S, D, D, D, D, D, W, W, W, D, W, D
     int mapaBlocoCai[TAM][TAM] = {
         {1,1,1,1,1,1,1,1,1,1,1},
         {1,1,0,0,1,0,0,0,0,0,1},
@@ -151,6 +151,7 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1,1,1,1,1,1,1,1,1,1,1}};
 
     // MAPA 4 - porta A muda de estado com a rotacao.
+    // Sequencia para vencer: D, D, W, W, D, W, W, A, A, W, A, A, A, S, S, S
     int mapaPortaSome[TAM][TAM] = {
         {1,1,1,1,1,1,1,1,1,1,1},
         {1,0,0,0,0,0,0,1,0,1,1},
@@ -165,6 +166,7 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1,1,1,1,1,1,1,1,1,1,1}};
 
     // MAPA 5 - exige duas ou mais rotacoes e usa portas A e B.
+    // Sequencia para vencer: D, S, D, D, W, D, D, D, D, D
     int mapaDuasRotacoes[TAM][TAM] = {
         {1,1,1,1,1,1,1,1,1,1,1},
         {1,1,1,1,1,1,1,1,1,1,1},
