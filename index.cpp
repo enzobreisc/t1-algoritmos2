@@ -5,7 +5,7 @@ using namespace std;
 
 #define TAM 11
 #define NUM_MAPAS 5
-#define PRIMEIRO_MAPA_OFICIAL 3 // mapas 1 e 2 sao so de teste (Etapas 1 e 6), nao aparecem no menu
+#define PRIMEIRO_MAPA_OFICIAL 3 // mapas 1 e 2 sao so de teste, nao aparecem no menu
 
 #define VAZIO 0
 #define PAREDE 1
@@ -15,7 +15,6 @@ using namespace std;
 #define SAIDA 5
 #define PORTA_A 6
 #define PORTA_B 7
-
 
 char leTecla();
 void limpaTela();
@@ -50,6 +49,7 @@ char leTecla()
     ch = getchar();
 
     system("stty icanon echo");
+
     return ch;
 }
 
@@ -65,6 +65,7 @@ void separaTerrenoEOcupante(const int mapa[][TAM], int terreno[][TAM], int ocupa
         for (int j = 0; j < n; j++)
         {
             int valor = mapa[i][j];
+
             if (valor == JOGADOR || valor == BLOCO)
             {
                 ocupante[i][j] = valor;
@@ -81,6 +82,7 @@ void separaTerrenoEOcupante(const int mapa[][TAM], int terreno[][TAM], int ocupa
 
 void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa)
 {
+    // clang-format off
     // Sequencia para vencer: W, Q, D, W, W, W, W, W, W, D, D
     int mapa1[TAM][TAM] = {
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
@@ -94,7 +96,6 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
-
 
     // Sequencia para vencer: W
     int mapa2[TAM][TAM] = {
@@ -113,62 +114,67 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
     // MAPA 3 - exige a queda do bloco para vencer.
     // Sequencia para vencer: W, D, D, S, S, E, D, S, S, S, D, D, D
     int mapaBlocoCai[TAM][TAM] = {
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,5,1,1,1,1},
-        {1,1,1,1,1,1,0,1,1,1,1},
-        {1,0,0,0,1,1,0,1,1,1,1},
-        {1,2,1,0,0,0,3,0,0,1,1},
-        {1,0,1,4,1,1,1,1,1,1,1},
-        {1,0,0,0,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1}};
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1, 1, 5, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1},
+        {1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1},
+        {1, 2, 1, 0, 0, 0, 3, 0, 0, 1, 1},
+        {1, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1},
+        {1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
     // MAPA 4 - porta A muda de estado com a rotacao.
     // Sequencia para vencer: D, D, W, W, D, W, W, A, A, W, A, A, A, S, S, S
     int mapaPortaSome[TAM][TAM] = {
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,0,0,0,0,0,0,1,1,1,1},
-        {1,0,1,0,0,1,0,1,0,4,1},
-        {1,0,1,0,0,0,1,1,0,1,1},
-        {1,0,0,0,0,1,1,4,0,0,1},
-        {1,0,1,0,0,1,1,1,0,0,1},
-        {1,0,0,5,0,6,0,0,0,0,1},
-        {1,0,0,0,1,1,1,0,0,0,1},
-        {1,0,1,1,1,2,0,0,0,0,1},
-        {1,1,0,0,0,1,0,0,0,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1}};
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1},
+        {1, 0, 1, 0, 0, 1, 0, 1, 0, 4, 1},
+        {1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1},
+        {1, 0, 0, 0, 0, 1, 1, 4, 0, 0, 1},
+        {1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1},
+        {1, 0, 0, 5, 0, 6, 0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1},
+        {1, 0, 1, 1, 1, 2, 0, 0, 0, 0, 1},
+        {1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
     // MAPA 5 - exige duas ou mais rotacoes e usa portas A e B.
     // Sequencia para vencer: D, S, D, D, W, D, D, D, D, D
     int mapaDuasRotacoes[TAM][TAM] = {
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,0,0,0,1,1,1,1,1,1},
-        {1,1,0,0,0,1,1,1,1,1,1},
-        {1,4,0,0,1,4,1,1,1,1,1},
-        {1,2,0,6,0,0,0,7,0,5,1},
-        {1,1,0,0,1,1,1,1,1,1,1},
-        {1,1,0,0,1,1,1,1,1,1,1},
-        {1,1,0,0,0,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1}};
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1},
+        {1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1},
+        {1, 4, 0, 0, 1, 4, 1, 1, 1, 1, 1},
+        {1, 2, 0, 6, 0, 0, 0, 7, 0, 5, 1},
+        {1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
+    // clang-format on
 
     switch (numeroDoMapa)
     {
     case 2:
         separaTerrenoEOcupante(mapa2, terreno, ocupante, n);
         break;
+
     case 3:
         separaTerrenoEOcupante(mapaBlocoCai, terreno, ocupante, n);
         break;
+
     case 4:
         separaTerrenoEOcupante(mapaPortaSome, terreno, ocupante, n);
         break;
+
     case 5:
         separaTerrenoEOcupante(mapaDuasRotacoes, terreno, ocupante, n);
         break;
+
     case 1:
     default:
         separaTerrenoEOcupante(mapa1, terreno, ocupante, n);
@@ -182,10 +188,12 @@ bool portaEstaFechada(int celula, int orientacao)
     {
         return orientacao == 0 || orientacao == 180;
     }
+
     if (celula == PORTA_B)
     {
         return orientacao == 90 || orientacao == 270;
     }
+
     return false;
 }
 
@@ -197,7 +205,6 @@ void desenhaCenario(const int terreno[][TAM], const int ocupante[][TAM], int n, 
         {
             char simbolo;
 
-            // O ocupante (jogador/bloco), quando existe, e desenhado por cima do terreno.
             if (ocupante[i][j] == JOGADOR)
             {
                 simbolo = '@';
@@ -213,28 +220,36 @@ void desenhaCenario(const int terreno[][TAM], const int ocupante[][TAM], int n, 
                 case VAZIO:
                     simbolo = ' ';
                     break;
+
                 case PAREDE:
                     simbolo = '#';
                     break;
+
                 case ALAVANCA:
                     simbolo = 'A';
                     break;
+
                 case SAIDA:
                     simbolo = 'S';
                     break;
+
                 case PORTA_A:
                     simbolo = portaEstaFechada(terreno[i][j], orientacao) ? '=' : ':';
                     break;
+
                 case PORTA_B:
                     simbolo = portaEstaFechada(terreno[i][j], orientacao) ? '|' : ';';
                     break;
+
                 default:
                     simbolo = '?';
                     break;
                 }
             }
+
             cout << simbolo;
         }
+
         cout << endl;
     }
 }
@@ -250,12 +265,15 @@ void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoe
 void exibeMenu(bool jogoEmAndamento)
 {
     limpaTela();
+
     cout << "===== LABIRINTO GIRATORIO =====" << endl;
     cout << "[N] Novo jogo" << endl;
+
     if (jogoEmAndamento)
     {
         cout << "[C] Continuar" << endl;
     }
+
     cout << "[S] Sobre" << endl;
     cout << "[F] Fim" << endl;
     cout << "> ";
@@ -264,6 +282,7 @@ void exibeMenu(bool jogoEmAndamento)
 void exibeSobre()
 {
     limpaTela();
+
     cout << "===== SOBRE =====" << endl;
     cout << "Equipe: Bruno Naressi, Enzo Breischatt" << endl;
     cout << "Mes/Ano: Setembro de 2026" << endl;
@@ -271,20 +290,25 @@ void exibeSobre()
     cout << "Professor: Tiago Felski" << endl;
     cout << "Codigo-base: Windows" << endl;
     cout << endl;
+
     cout << "Regras:" << endl;
     cout << " W/A/S/D  - move o jogador uma celula por vez" << endl;
     cout << " Q/E      - gira o cenario (anti-horario/horario), so sobre uma alavanca" << endl;
     cout << " R        - reinicia a fase atual" << endl;
     cout << " ESC      - volta ao menu, preservando o jogo para Continuar" << endl;
     cout << endl;
+
     cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
+
     leTecla();
 }
 
 int escolheMapa(int primeiroMapa, int ultimoMapa)
 {
     cout << "Novo jogo - mapa especifico ou aleatorio? (E/A): ";
+
     char tecla = leTecla();
+
     cout << endl;
 
     if (tecla == 'a')
@@ -293,16 +317,21 @@ int escolheMapa(int primeiroMapa, int ultimoMapa)
     }
 
     int escolhido;
+
     do
     {
         cout << "Escolha o mapa (" << primeiroMapa << " a " << ultimoMapa << "): ";
+
         cin >> escolhido;
+
         if (cin.fail())
         {
             cin.clear();
             escolhido = 0;
         }
+
         cin.ignore(10000, '\n');
+
     } while (escolhido < primeiroMapa || escolhido > ultimoMapa);
 
     return escolhido;
@@ -318,6 +347,7 @@ void localizaJogador(const int ocupante[][TAM], int n, int &px, int &py)
             {
                 px = i;
                 py = j;
+
                 return;
             }
         }
@@ -362,15 +392,19 @@ bool celulaEhAtravessavel(const int terreno[][TAM], const int ocupante[][TAM], i
     {
         return false;
     }
+
     if (ocupante[lin][col] != VAZIO)
     {
         return false;
     }
+
     int valorTerreno = terreno[lin][col];
+
     if (valorTerreno == PORTA_A || valorTerreno == PORTA_B)
     {
         return !portaEstaFechada(valorTerreno, orientacao);
     }
+
     return valorTerreno == VAZIO || valorTerreno == ALAVANCA || valorTerreno == SAIDA;
 }
 
@@ -395,6 +429,7 @@ bool moveJogador(int terreno[][TAM], int ocupante[][TAM], int n, int &px, int &p
 
     ocupante[px][py] = VAZIO;
     ocupante[novoLin][novoCol] = JOGADOR;
+
     px = novoLin;
     py = novoCol;
 
@@ -437,6 +472,7 @@ void aplicaGravidade(const int terreno[][TAM], int ocupante[][TAM], int n, int o
                 {
                     ocupante[lin][j] = VAZIO;
                     ocupante[lin + 1][j] = BLOCO;
+
                     lin++;
                 }
             }
@@ -451,6 +487,7 @@ void resolveEsmagamento(const int terreno[][TAM], int ocupante[][TAM], int n, in
         for (int j = 0; j < n; j++)
         {
             int valorTerreno = terreno[i][j];
+
             bool ehPorta = (valorTerreno == PORTA_A || valorTerreno == PORTA_B);
 
             if (ehPorta && portaEstaFechada(valorTerreno, orientacao))
@@ -477,12 +514,14 @@ void giraCenario(int terreno[][TAM], int ocupante[][TAM], int n, int &orientacao
     {
         giraDireita(terreno, terrenoAux, n);
         giraDireita(ocupante, ocupanteAux, n);
+
         orientacao = (orientacao + 90) % 360;
     }
     else
     {
         giraEsquerda(terreno, terrenoAux, n);
         giraEsquerda(ocupante, ocupanteAux, n);
+
         orientacao = (orientacao + 270) % 360;
     }
 
@@ -496,13 +535,16 @@ void giraCenario(int terreno[][TAM], int ocupante[][TAM], int n, int &orientacao
     }
 
     resolveEsmagamento(terreno, ocupante, n, orientacao, jogoPerdido);
+
     aplicaGravidade(terreno, ocupante, n, orientacao);
 }
 
 void reiniciaFase(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido)
 {
     carregaMapa(terreno, ocupante, n, numeroDoMapa);
+
     localizaJogador(ocupante, n, px, py);
+
     orientacao = 0;
     movimentos = 0;
     rotacoes = 0;
@@ -512,10 +554,13 @@ void reiniciaFase(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
 void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido, bool &jogoVencido)
 {
     bool jogando = true;
+
     while (jogando)
     {
         limpaTela();
+
         desenhaStatus(numeroDoMapa, orientacao, movimentos, rotacoes);
+
         desenhaCenario(terreno, ocupante, n, orientacao);
 
         if (jogoPerdido)
@@ -531,7 +576,7 @@ void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
 
         char tecla = leTecla();
 
-        if (tecla == 27) // ESC
+        if (tecla == 27)
         {
             jogando = false;
             continue;
@@ -540,7 +585,9 @@ void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
         if (tecla == 'r')
         {
             reiniciaFase(terreno, ocupante, n, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido);
+
             jogoVencido = false;
+
             continue;
         }
 
@@ -552,14 +599,18 @@ void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
         if (tecla == 'w' || tecla == 'a' || tecla == 's' || tecla == 'd')
         {
             if (moveJogador(terreno, ocupante, n, px, py, tecla, orientacao))
+            {
                 movimentos++;
+            }
         }
         else if (tecla == 'q' || tecla == 'e')
         {
             if (estaSobreAlavanca(terreno, px, py))
             {
                 giraCenario(terreno, ocupante, n, orientacao, tecla, jogoPerdido);
+
                 localizaJogador(ocupante, n, px, py);
+
                 rotacoes++;
             }
         }
@@ -575,11 +626,13 @@ int main()
 {
     int terreno[TAM][TAM];
     int ocupante[TAM][TAM];
+
     int orientacao;
     int px, py;
     int movimentos;
     int numeroDoMapa = 1;
     int rotacoes;
+
     bool jogoPerdido = false;
     bool jogoVencido = false;
     bool jogoEmAndamento = false;
@@ -587,9 +640,11 @@ int main()
     srand((unsigned int)time(nullptr));
 
     bool executando = true;
+
     while (executando)
     {
         exibeMenu(jogoEmAndamento);
+
         char opcao = leTecla();
 
         bool jogar = false;
@@ -605,7 +660,9 @@ int main()
         else if (opcao == 'n')
         {
             numeroDoMapa = escolheMapa(PRIMEIRO_MAPA_OFICIAL, NUM_MAPAS);
+
             reiniciaFase(terreno, ocupante, TAM, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido);
+
             jogoVencido = false;
             jogoEmAndamento = true;
             jogar = true;
