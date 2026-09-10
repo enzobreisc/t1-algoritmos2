@@ -110,19 +110,18 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
-    // MAPA 3 - mapa de exploracao: pode ser vencido apenas com movimentos.
-    // A alavanca e o bloco ficam como elementos visuais, mas nao sao necessarios.
-    // Sequencia para vencer: W, W, D, D, D, D, D, D, D, D, S
+    // MAPA 3 - exige a queda do bloco para vencer.
+    // Sequencia para vencer: W, D, D, S, S, E, D, S, S, S, D, D, D
     int mapaBlocoCai[TAM][TAM] = {
         {1,1,1,1,1,1,1,1,1,1,1},
         {1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,5,1,1,1,1},
+        {1,1,1,1,1,1,0,1,1,1,1},
+        {1,0,0,0,1,1,0,1,1,1,1},
+        {1,2,1,0,0,0,3,0,0,1,1},
+        {1,0,1,4,1,1,1,1,1,1,1},
+        {1,0,0,0,1,1,1,1,1,1,1},
         {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,0,0,0,0,0,0,0,0,1,1},
-        {1,0,1,1,1,1,1,1,0,5,1},
-        {1,2,0,0,0,0,3,0,0,1,1},
-        {1,0,1,1,1,1,4,1,0,1,1},
-        {1,0,0,0,0,0,0,0,0,1,1},
         {1,1,1,1,1,1,1,1,1,1,1},
         {1,1,1,1,1,1,1,1,1,1,1}};
 
@@ -270,7 +269,7 @@ void exibeSobre()
     cout << "Mes/Ano: Setembro de 2026" << endl;
     cout << "Disciplina: Algoritmos e Programacao II (22817)" << endl;
     cout << "Professor: Tiago Felski" << endl;
-    cout << "Codigo-base: versao Linux (termios.h/unistd.h)" << endl;
+    cout << "Codigo-base: Windows" << endl;
     cout << endl;
     cout << "Regras:" << endl;
     cout << " W/A/S/D  - move o jogador uma celula por vez" << endl;
