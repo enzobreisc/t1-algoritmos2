@@ -1,6 +1,4 @@
 #include <iostream>
-#include <termios.h>
-#include <unistd.h>
 #include <cstdlib>
 #include <ctime>
 using namespace std;
@@ -45,17 +43,13 @@ void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
 
 char leTecla()
 {
-    struct termios antigo, novo;
     char ch;
 
-    tcgetattr(STDIN_FILENO, &antigo);
-    novo = antigo;
-    novo.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &novo);
+    system("stty -icanon -echo");
 
     ch = getchar();
 
-    tcsetattr(STDIN_FILENO, TCSANOW, &antigo);
+    system("stty icanon echo");
     return ch;
 }
 
@@ -116,29 +110,30 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
-    // MAPA 3 - bloco precisa cair para liberar a passagem.
-    // Sequencia para vencer: S, S, D, S, D, D, D, D, D, W, W, W, D, W, D
+    // MAPA 3 - mapa de exploracao: pode ser vencido apenas com movimentos.
+    // A alavanca e o bloco ficam como elementos visuais, mas nao sao necessarios.
+    // Sequencia para vencer: W, W, D, D, D, D, D, D, D, D, S
     int mapaBlocoCai[TAM][TAM] = {
         {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,0,0,1,0,0,0,0,0,1},
-        {1,1,0,0,0,0,0,1,0,0,1},
-        {1,0,0,0,0,0,0,1,0,1,1},
-        {1,0,1,1,0,0,0,0,1,0,1},
-        {1,0,1,0,0,0,0,1,0,5,1},
-        {1,2,0,0,1,0,3,0,0,1,1},
-        {1,0,0,0,4,1,0,0,0,0,1},
-        {1,0,0,1,0,0,1,0,0,0,1},
-        {1,1,0,0,0,0,0,0,0,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1},
+        {1,0,0,0,0,0,0,0,0,1,1},
+        {1,0,1,1,1,1,1,1,0,5,1},
+        {1,2,0,0,0,0,3,0,0,1,1},
+        {1,0,1,1,1,1,4,1,0,1,1},
+        {1,0,0,0,0,0,0,0,0,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1},
         {1,1,1,1,1,1,1,1,1,1,1}};
 
     // MAPA 4 - porta A muda de estado com a rotacao.
     // Sequencia para vencer: D, D, W, W, D, W, W, A, A, W, A, A, A, S, S, S
     int mapaPortaSome[TAM][TAM] = {
         {1,1,1,1,1,1,1,1,1,1,1},
-        {1,0,0,0,0,0,0,1,0,1,1},
+        {1,0,0,0,0,0,0,1,1,1,1},
         {1,0,1,0,0,1,0,1,0,4,1},
-        {1,0,1,0,0,0,0,1,0,1,1},
-        {1,0,0,0,0,1,0,4,0,0,1},
+        {1,0,1,0,0,0,1,1,0,1,1},
+        {1,0,0,0,0,1,1,4,0,0,1},
         {1,0,1,0,0,1,1,1,0,0,1},
         {1,0,0,5,0,6,0,0,0,0,1},
         {1,0,0,0,1,1,1,0,0,0,1},
@@ -155,7 +150,7 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1,1,0,0,0,1,1,1,1,1,1},
         {1,4,0,0,1,4,1,1,1,1,1},
         {1,2,0,6,0,0,0,7,0,5,1},
-        {1,1,0,0,0,1,1,1,1,1,1},
+        {1,1,0,0,1,1,1,1,1,1,1},
         {1,1,0,0,1,1,1,1,1,1,1},
         {1,1,0,0,0,1,1,1,1,1,1},
         {1,1,1,1,1,1,1,1,1,1,1},
