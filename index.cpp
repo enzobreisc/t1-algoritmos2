@@ -1,6 +1,11 @@
-#include <iostream>
+#include <algorithm>
 #include <cstdlib>
 #include <ctime>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
 using namespace std;
 
 #define TAM 11
@@ -22,6 +27,8 @@ void separaTerrenoEOcupante(const int mapa[][TAM], int terreno[][TAM], int ocupa
 void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa);
 void exibeMenu(bool jogoEmAndamento);
 void exibeSobre();
+void exibePlacar(int numeroDoMapa, const string &nomeJogador);
+void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos, int &posicao);
 int escolheMapa(int primeiroMapa, int ultimoMapa);
 void desenhaCenario(const int terreno[][TAM], const int ocupante[][TAM], int n, int orientacao);
 void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoes);
@@ -38,7 +45,7 @@ void aplicaGravidade(const int terreno[][TAM], int ocupante[][TAM], int n, int o
 void resolveEsmagamento(const int terreno[][TAM], int ocupante[][TAM], int n, int orientacao, bool &jogoPerdido);
 void giraCenario(int terreno[][TAM], int ocupante[][TAM], int n, int &orientacao, char tecla, bool &jogoPerdido);
 void reiniciaFase(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido);
-void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido, bool &jogoVencido);
+void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, const string &nomeJogador, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido, bool &jogoVencido, bool &placarRegistrado);
 
 char leTecla()
 {
@@ -260,6 +267,198 @@ void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoe
     cout << "  Orientacao: " << orientacao;
     cout << "  Movimentos: " << movimentos;
     cout << "  Rotacoes: " << rotacoes << endl;
+}
+
+struct RegistroPlacar
+{
+    int mapa;
+    string nome;
+    int movimentos;
+};
+
+void carregaTodosOsPlacar(vector<RegistroPlacar> &registros)
+{
+    ifstream arquivo("placar.txt");
+
+    if (!arquivo.is_open())
+        return;
+
+    string linha;
+
+    while (getline(arquivo, linha))
+    {
+        if (linha.empty())
+            continue;
+
+        stringstream ss(linha);
+        string mapaTexto, nome, movimentosTexto;
+
+        getline(ss, mapaTexto, '|');
+        getline(ss, nome, '|');
+        getline(ss, movimentosTexto, '|');
+
+        if (mapaTexto.empty() || nome.empty() || movimentosTexto.empty())
+            continue;
+
+        try
+        {
+            RegistroPlacar registro;
+            registro.mapa = stoi(mapaTexto);
+            registro.nome = nome;
+            registro.movimentos = stoi(movimentosTexto);
+            registros.push_back(registro);
+        }
+        catch (...)
+        {
+        }
+    }
+}
+
+void salvaTodosOsPlacar(const vector<RegistroPlacar> &registros)
+{
+    ofstream arquivo("placar.txt", ios::trunc);
+
+    for (const RegistroPlacar &registro : registros)
+    {
+        arquivo << registro.mapa << "|"
+                << registro.nome << "|"
+                << registro.movimentos << endl;
+    }
+}
+
+void ordenaPlacar(vector<RegistroPlacar> &registros)
+{
+    sort(registros.begin(), registros.end(),
+         [](const RegistroPlacar &a, const RegistroPlacar &b)
+         {
+             if (a.mapa != b.mapa)
+                 return a.mapa < b.mapa;
+
+             if (a.movimentos != b.movimentos)
+                 return a.movimentos < b.movimentos;
+
+             return a.nome < b.nome;
+         });
+}
+
+void exibePlacar(int numeroDoMapa, const string &nomeJogador)
+{
+    vector<RegistroPlacar> registros;
+    carregaTodosOsPlacar(registros);
+    ordenaPlacar(registros);
+
+    cout << endl;
+    cout << "===== TOP 10 - MAPA " << numeroDoMapa << " =====" << endl;
+
+    int posicao = 1;
+    bool encontrouJogador = false;
+
+    for (const RegistroPlacar &registro : registros)
+    {
+        if (registro.mapa != numeroDoMapa)
+            continue;
+
+        cout << posicao << ". " << registro.nome
+             << " - " << registro.movimentos << " movimentos";
+
+        if (registro.nome == nomeJogador)
+        {
+            cout << "  <-- SEU MELHOR RESULTADO";
+            encontrouJogador = true;
+        }
+
+        cout << endl;
+        posicao++;
+
+        if (posicao > 10)
+            break;
+    }
+
+    if (!encontrouJogador)
+    {
+        cout << "Seu melhor resultado ainda esta fora do TOP 10." << endl;
+    }
+
+    cout << endl;
+}
+
+void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos, int &posicao)
+{
+    vector<RegistroPlacar> registros;
+    carregaTodosOsPlacar(registros);
+
+    int melhorAnterior = -1;
+
+    for (const RegistroPlacar &registro : registros)
+    {
+        if (registro.mapa == numeroDoMapa &&
+            registro.nome == nomeJogador)
+        {
+            melhorAnterior = registro.movimentos;
+            break;
+        }
+    }
+
+    int melhorResultado = movimentos;
+
+    if (melhorAnterior != -1 && melhorAnterior < melhorResultado)
+        melhorResultado = melhorAnterior;
+
+    vector<RegistroPlacar> novosRegistros;
+
+    for (const RegistroPlacar &registro : registros)
+    {
+        if (registro.mapa == numeroDoMapa &&
+            registro.nome == nomeJogador)
+        {
+            continue;
+        }
+
+        novosRegistros.push_back(registro);
+    }
+
+    novosRegistros.push_back({numeroDoMapa, nomeJogador, melhorResultado});
+
+    ordenaPlacar(novosRegistros);
+
+    vector<RegistroPlacar> resultadoFinal;
+    int quantidadeDoMapa = 0;
+
+    for (const RegistroPlacar &registro : novosRegistros)
+    {
+        if (registro.mapa == numeroDoMapa)
+        {
+            if (quantidadeDoMapa < 10)
+            {
+                resultadoFinal.push_back(registro);
+                quantidadeDoMapa++;
+            }
+        }
+        else
+        {
+            resultadoFinal.push_back(registro);
+        }
+    }
+
+    ordenaPlacar(resultadoFinal);
+    salvaTodosOsPlacar(resultadoFinal);
+
+    posicao = 11;
+    int contador = 0;
+
+    for (const RegistroPlacar &registro : resultadoFinal)
+    {
+        if (registro.mapa != numeroDoMapa)
+            continue;
+
+        contador++;
+
+        if (registro.nome == nomeJogador)
+        {
+            posicao = contador;
+            break;
+        }
+    }
 }
 
 void exibeMenu(bool jogoEmAndamento)
@@ -551,7 +750,7 @@ void reiniciaFase(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
     jogoPerdido = false;
 }
 
-void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido, bool &jogoVencido)
+void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, const string &nomeJogador, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido, bool &jogoVencido, bool &placarRegistrado)
 {
     bool jogando = true;
 
@@ -587,6 +786,7 @@ void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
             reiniciaFase(terreno, ocupante, n, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido);
 
             jogoVencido = false;
+            placarRegistrado = false;
 
             continue;
         }
@@ -618,6 +818,36 @@ void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
         if (!jogoPerdido && jogadorVenceu(terreno, px, py))
         {
             jogoVencido = true;
+
+            if (!placarRegistrado)
+            {
+                int posicao;
+                registraPlacar(numeroDoMapa, nomeJogador, movimentos, posicao);
+                placarRegistrado = true;
+
+                limpaTela();
+                cout << "===== MAPA " << numeroDoMapa << " CONCLUIDO =====" << endl;
+                cout << "Jogador: " << nomeJogador << endl;
+                cout << "Movimentos nesta tentativa: " << movimentos << endl;
+                cout << "Rotacoes: " << rotacoes << endl;
+
+                if (posicao <= 10)
+                {
+                    cout << endl;
+                    cout << "Seu melhor resultado esta no " << posicao
+                         << "o lugar do TOP 10!" << endl;
+                }
+                else
+                {
+                    cout << endl;
+                    cout << "Seu melhor resultado esta fora do TOP 10." << endl;
+                }
+
+                exibePlacar(numeroDoMapa, nomeJogador);
+
+                cout << "Pressione qualquer tecla para continuar..." << endl;
+                leTecla();
+            }
         }
     }
 }
@@ -632,6 +862,8 @@ int main()
     int movimentos;
     int numeroDoMapa = 1;
     int rotacoes;
+    string nomeJogador;
+    bool placarRegistrado = false;
 
     bool jogoPerdido = false;
     bool jogoVencido = false;
@@ -661,9 +893,19 @@ int main()
         {
             numeroDoMapa = escolheMapa(PRIMEIRO_MAPA_OFICIAL, NUM_MAPAS);
 
+            cout << "Digite o nome do jogador: ";
+            getline(cin, nomeJogador);
+
+            while (nomeJogador.empty())
+            {
+                cout << "O nome nao pode ficar vazio. Digite novamente: ";
+                getline(cin, nomeJogador);
+            }
+
             reiniciaFase(terreno, ocupante, TAM, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido);
 
             jogoVencido = false;
+            placarRegistrado = false;
             jogoEmAndamento = true;
             jogar = true;
         }
@@ -674,7 +916,7 @@ int main()
 
         if (jogar)
         {
-            jogarPartida(terreno, ocupante, TAM, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido, jogoVencido);
+            jogarPartida(terreno, ocupante, TAM, numeroDoMapa, nomeJogador, orientacao, px, py, movimentos, rotacoes, jogoPerdido, jogoVencido, placarRegistrado);
         }
     }
 
