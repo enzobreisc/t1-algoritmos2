@@ -22,6 +22,13 @@ using namespace std;
 #define PORTA_A 6
 #define PORTA_B 7
 
+// resultados de processaTecla
+#define TECLA_IGNORADA 0 // tecla do jogo, mas sem efeito (parede, giro fora da alavanca, jogo encerrado)
+#define TECLA_OK 1
+#define TECLA_VENCEU 2
+#define TECLA_PERDEU 3
+#define TECLA_INVALIDA 4 // nao e W, A, S, D, Q nem E
+
 struct Posicao
 {
     int lin, col;
@@ -88,6 +95,7 @@ bool celulaSustentaBloco(const Jogo &j, int lin, int col);
 void aplicaGravidade(Jogo &j);
 void resolveEsmagamento(Jogo &j);
 void giraCenario(Jogo &j, char tecla);
+int processaTecla(Jogo &j, char tecla);
 void reiniciaFase(Jogo &j);
 void jogarPartida(Jogo &j);
 
@@ -843,6 +851,59 @@ void giraCenario(Jogo &j, char tecla)
     j.jogador = localizaJogador(j);
 }
 
+int processaTecla(Jogo &j, char tecla)
+{
+    tecla = tolower(tecla);
+
+    bool ehMovimento = (tecla == 'w' || tecla == 'a' || tecla == 's' || tecla == 'd');
+    bool ehRotacao = (tecla == 'q' || tecla == 'e');
+
+    if (!ehMovimento && !ehRotacao)
+    {
+        return TECLA_INVALIDA;
+    }
+
+    if (j.perdido || j.vencido)
+    {
+        return TECLA_IGNORADA;
+    }
+
+    if (ehMovimento)
+    {
+        if (!moveJogador(j, tecla))
+        {
+            return TECLA_IGNORADA;
+        }
+
+        j.movimentos++;
+    }
+    else
+    {
+        if (!estaSobreAlavanca(j))
+        {
+            return TECLA_IGNORADA;
+        }
+
+        giraCenario(j, tecla);
+
+        j.rotacoes++;
+    }
+
+    if (j.perdido)
+    {
+        return TECLA_PERDEU;
+    }
+
+    if (jogadorVenceu(j))
+    {
+        j.vencido = true;
+
+        return TECLA_VENCEU;
+    }
+
+    return TECLA_OK;
+}
+
 void reiniciaFase(Jogo &j)
 {
     carregaMapa(j, j.numeroMapa);
@@ -866,45 +927,17 @@ void jogarPartida(Jogo &j)
 
         char tecla = tolower(leTecla());
 
+        // ESC e R sao comandos da partida, nao teclas do jogo: ficam fora de processaTecla
         if (tecla == 27)
         {
             jogando = false;
-            continue;
         }
-
-        if (tecla == 'r')
+        else if (tecla == 'r')
         {
             reiniciaFase(j);
-
-            continue;
         }
-
-        if (j.perdido || j.vencido)
+        else if (processaTecla(j, tecla) == TECLA_VENCEU)
         {
-            continue;
-        }
-
-        if (tecla == 'w' || tecla == 'a' || tecla == 's' || tecla == 'd')
-        {
-            if (moveJogador(j, tecla))
-            {
-                j.movimentos++;
-            }
-        }
-        else if (tecla == 'q' || tecla == 'e')
-        {
-            if (estaSobreAlavanca(j))
-            {
-                giraCenario(j, tecla);
-
-                j.rotacoes++;
-            }
-        }
-
-        if (!j.perdido && jogadorVenceu(j))
-        {
-            j.vencido = true;
-
             limpaTela();
             cout << "===== MAPA " << j.numeroMapa << " CONCLUIDO =====" << endl;
             cout << "Movimentos nesta tentativa: " << j.movimentos << endl;
