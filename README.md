@@ -13,7 +13,7 @@ portas.
 - Enzo Breischatt
 
 Professor: Tiago Felski
-Mes/Ano: Setembro de 2026
+Mes/Ano: Outubro de 2026
 
 ## Como compilar e executar
 
@@ -48,6 +48,7 @@ No VS Code tambem existe uma task de build pronta (`Cmd+Shift+B`), definida em
 
 - `[N]` Novo jogo - permite escolher um mapa especifico ou sortear um aleatorio
 - `[C]` Continuar - aparece apenas quando existe uma partida em andamento
+  (uma partida vencida ou perdida nao pode ser retomada)
 - `[S]` Sobre - dados da equipe e regras
 - `[F]` Fim - encerra o programa
 
@@ -97,3 +98,22 @@ Todo o jogo esta em `index.cpp`. O mapa e mantido em duas matrizes separadas:
 
 Essa separacao evita que o jogador ou um bloco "apague" a alavanca ou a saida
 ao passar por cima.
+
+## Defeitos da M1 corrigidos
+
+- **Solucao do mapa 4 ("Porta que some")** - a sequencia do comentario
+  (`DDWWDWWAAWAAASSS`) travava na 9a tecla. A correta e `ddwwdwwaqwddsssss`
+  (17 teclas, 1 rotacao).
+- **Solucao do mapa 5 ("Duas rotacoes")** - a sequencia do comentario
+  (`DSDDWDDDDD`) travava na 4a tecla. A correta e `wqwwdwwaqwaaaa`
+  (14 teclas, 2 rotacoes).
+- **Teclas maiusculas** - com Caps Lock ligado nenhuma tecla funcionava. Agora
+  a tecla lida passa por `tolower` no jogo, no menu e na escolha do mapa
+  (a escolha aleatoria aceita `A` e `a`).
+- **Continuar depois do fim** - `jogoEmAndamento` nunca voltava a `false`, entao
+  dava para "continuar" uma partida ja vencida ou perdida.
+- **Nome do jogador** - nao havia limite de tamanho e um `|` no nome quebrava o
+  `placar.txt`. O nome agora e pedido so ao vencer, com ate 15 caracteres e sem
+  virgula.
+- **Versao do codigo-base** - a tela "Sobre" dizia "Windows", mas o codigo usa
+  `stty`. Agora a tela e o README dizem Linux/macOS.

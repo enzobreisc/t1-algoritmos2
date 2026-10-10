@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
@@ -29,6 +30,7 @@ void exibeMenu(bool jogoEmAndamento);
 void exibeSobre();
 void exibePlacar(int numeroDoMapa, const string &nomeJogador);
 void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos, int &posicao);
+string leNomeJogador();
 int escolheMapa(int primeiroMapa, int ultimoMapa);
 void desenhaCenario(const int terreno[][TAM], const int ocupante[][TAM], int n, int orientacao);
 void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoes);
@@ -45,7 +47,7 @@ void aplicaGravidade(const int terreno[][TAM], int ocupante[][TAM], int n, int o
 void resolveEsmagamento(const int terreno[][TAM], int ocupante[][TAM], int n, int orientacao, bool &jogoPerdido);
 void giraCenario(int terreno[][TAM], int ocupante[][TAM], int n, int &orientacao, char tecla, bool &jogoPerdido);
 void reiniciaFase(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido);
-void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, const string &nomeJogador, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido, bool &jogoVencido, bool &placarRegistrado);
+void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido, bool &jogoVencido, bool &placarRegistrado);
 
 char leTecla()
 {
@@ -134,7 +136,7 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
     // MAPA 4 - porta A muda de estado com a rotacao.
-    // Sequencia para vencer: D, D, W, W, D, W, W, A, A, W, A, A, A, S, S, S
+    // Sequencia para vencer: D, D, W, W, D, W, W, A, Q, W, D, D, S, S, S, S, S
     int mapaPortaSome[TAM][TAM] = {
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1},
@@ -149,7 +151,7 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
     // MAPA 5 - exige duas ou mais rotacoes e usa portas A e B.
-    // Sequencia para vencer: D, S, D, D, W, D, D, D, D, D
+    // Sequencia para vencer: W, Q, W, W, D, W, W, A, Q, W, A, A, A, A
     int mapaDuasRotacoes[TAM][TAM] = {
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
@@ -484,10 +486,10 @@ void exibeSobre()
 
     cout << "===== SOBRE =====" << endl;
     cout << "Equipe: Bruno Naressi, Enzo Breischatt" << endl;
-    cout << "Mes/Ano: Setembro de 2026" << endl;
+    cout << "Mes/Ano: Outubro de 2026" << endl;
     cout << "Disciplina: Algoritmos e Programacao II (22817)" << endl;
     cout << "Professor: Tiago Felski" << endl;
-    cout << "Codigo-base: Windows" << endl;
+    cout << "Codigo-base: Linux/macOS" << endl;
     cout << endl;
 
     cout << "Regras:" << endl;
@@ -502,11 +504,34 @@ void exibeSobre()
     leTecla();
 }
 
+string leNomeJogador()
+{
+    string nome;
+    bool nomeValido = false;
+
+    while (!nomeValido)
+    {
+        cout << "Digite o seu nome (ate 15 caracteres, sem virgula): ";
+        getline(cin, nome);
+
+        if (nome.empty())
+            cout << "O nome nao pode ficar vazio." << endl;
+        else if (nome.length() > 15)
+            cout << "O nome pode ter no maximo 15 caracteres." << endl;
+        else if (nome.find(',') != string::npos || nome.find('|') != string::npos)
+            cout << "O nome nao pode ter virgula nem barra vertical." << endl;
+        else
+            nomeValido = true;
+    }
+
+    return nome;
+}
+
 int escolheMapa(int primeiroMapa, int ultimoMapa)
 {
     cout << "Novo jogo - mapa especifico ou aleatorio? (E/A): ";
 
-    char tecla = leTecla();
+    char tecla = tolower(leTecla());
 
     cout << endl;
 
@@ -750,7 +775,7 @@ void reiniciaFase(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
     jogoPerdido = false;
 }
 
-void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, const string &nomeJogador, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido, bool &jogoVencido, bool &placarRegistrado)
+void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido, bool &jogoVencido, bool &placarRegistrado)
 {
     bool jogando = true;
 
@@ -773,7 +798,7 @@ void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
             cout << "Pressione R para jogar novamente ou ESC para voltar ao menu." << endl;
         }
 
-        char tecla = leTecla();
+        char tecla = tolower(leTecla());
 
         if (tecla == 27)
         {
@@ -821,15 +846,17 @@ void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
 
             if (!placarRegistrado)
             {
+                limpaTela();
+                cout << "===== MAPA " << numeroDoMapa << " CONCLUIDO =====" << endl;
+                cout << "Movimentos nesta tentativa: " << movimentos << endl;
+                cout << "Rotacoes: " << rotacoes << endl;
+                cout << endl;
+
+                string nomeJogador = leNomeJogador();
+
                 int posicao;
                 registraPlacar(numeroDoMapa, nomeJogador, movimentos, posicao);
                 placarRegistrado = true;
-
-                limpaTela();
-                cout << "===== MAPA " << numeroDoMapa << " CONCLUIDO =====" << endl;
-                cout << "Jogador: " << nomeJogador << endl;
-                cout << "Movimentos nesta tentativa: " << movimentos << endl;
-                cout << "Rotacoes: " << rotacoes << endl;
 
                 if (posicao <= 10)
                 {
@@ -862,7 +889,6 @@ int main()
     int movimentos;
     int numeroDoMapa = 1;
     int rotacoes;
-    string nomeJogador;
     bool placarRegistrado = false;
 
     bool jogoPerdido = false;
@@ -877,7 +903,7 @@ int main()
     {
         exibeMenu(jogoEmAndamento);
 
-        char opcao = leTecla();
+        char opcao = tolower(leTecla());
 
         bool jogar = false;
 
@@ -893,15 +919,6 @@ int main()
         {
             numeroDoMapa = escolheMapa(PRIMEIRO_MAPA_OFICIAL, NUM_MAPAS);
 
-            cout << "Digite o nome do jogador: ";
-            getline(cin, nomeJogador);
-
-            while (nomeJogador.empty())
-            {
-                cout << "O nome nao pode ficar vazio. Digite novamente: ";
-                getline(cin, nomeJogador);
-            }
-
             reiniciaFase(terreno, ocupante, TAM, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido);
 
             jogoVencido = false;
@@ -916,7 +933,9 @@ int main()
 
         if (jogar)
         {
-            jogarPartida(terreno, ocupante, TAM, numeroDoMapa, nomeJogador, orientacao, px, py, movimentos, rotacoes, jogoPerdido, jogoVencido, placarRegistrado);
+            jogarPartida(terreno, ocupante, TAM, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido, jogoVencido, placarRegistrado);
+
+            jogoEmAndamento = !jogoPerdido && !jogoVencido;
         }
     }
 
