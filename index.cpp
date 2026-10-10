@@ -6,12 +6,14 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <unistd.h>
 #include <vector>
 using namespace std;
 
-#define TAM 11
-#define NUM_MAPAS 5
-#define PRIMEIRO_MAPA_OFICIAL 3 // mapas 1 e 2 sao so de teste, nao aparecem no menu
+const int TAM = 21;
+const int TAM_MIN = 11;
+const int MAX_MAPAS = 100;
+const int PAUSA_MS = 300;
 
 #define VAZIO 0
 #define PAREDE 1
@@ -22,12 +24,19 @@ using namespace std;
 #define PORTA_A 6
 #define PORTA_B 7
 
-// resultados de processaTecla
-#define TECLA_IGNORADA 0 // tecla do jogo, mas sem efeito (parede, giro fora da alavanca, jogo encerrado)
+#define TECLA_IGNORADA 0
 #define TECLA_OK 1
 #define TECLA_VENCEU 2
 #define TECLA_PERDEU 3
-#define TECLA_INVALIDA 4 // nao e W, A, S, D, Q nem E
+#define TECLA_INVALIDA 4
+
+#define SOL_VALIDA 0
+#define SOL_INCOMPLETA 1
+#define SOL_DERROTA 2
+#define SOL_TECLA_INVALIDA 3
+
+#define ESCOLHA_VOLTAR 0
+#define ESCOLHA_TODOS -1
 
 struct Posicao
 {
@@ -36,10 +45,10 @@ struct Posicao
 
 struct Jogo
 {
-    int terreno[TAM][TAM];
-    int ocupante[TAM][TAM];
-    int n;
-    int orientacao;
+    int terreno[TAM][TAM];  // o que e fixo na celula (so as n x n primeiras posicoes sao usadas)
+    int ocupante[TAM][TAM]; // o que se move sobre a celula (jogador e blocos)
+    int n;                  // dimensao do mapa atual (de TAM_MIN ate TAM)
+    int orientacao;         // 0, 1, 2 ou 3 (multiplos de 90 graus)
     Posicao jogador;
     int movimentos, rotacoes;
     int numeroMapa;
@@ -71,17 +80,32 @@ void trocar(T &a, T &b)
 
 char leTecla();
 void limpaTela();
-void separaTerrenoEOcupante(const int mapa[][TAM], Jogo &j);
-void carregaMapa(Jogo &j, int numeroDoMapa);
+void pausa(int milissegundos);
 void exibeMenu(bool jogoEmAndamento);
 void exibeSobre();
 void exibePlacar(int numeroDoMapa, const string &nomeJogador);
-void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos, int &posicao);
+void exibeListaMapas(const InfoMapa mapas[], int qtd);
 string leNomeJogador();
-int escolheMapa(int primeiroMapa, int ultimoMapa);
+int escolheMapa(const InfoMapa mapas[], int qtd, bool paraSolucao);
 void desenhaCenario(const Jogo &j);
 void desenhaStatus(const Jogo &j);
 void desenhaJogo(const Jogo &j);
+void desenhaFimDePartida(const Jogo &j);
+
+string nomeArquivoMapa(int numero, const string &extensao);
+bool leLinha(ifstream &arquivo, string &linha);
+bool converteInteiro(const string &texto, int &valor);
+bool leLinhaDoMapa(const string &linha, int valores[], int n, string &motivo);
+bool carregaMapa(int numero, Jogo &j, string &motivo);
+int contaMapas();
+int carregaInfoMapas(InfoMapa mapas[], int max);
+bool carregaSolucao(int numero, string &teclas, string &motivo);
+void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos, int &posicao);
+
+void separaTerrenoEOcupante(const int mapa[][TAM], Jogo &j);
+bool validaMapa(const Jogo &j, string &motivo);
+bool mapaEstavel(Jogo j);
+int sorteiaMapaValido(const InfoMapa mapas[], int qtd);
 Posicao localizaJogador(const Jogo &j);
 bool portaEstaFechada(int celula, int orientacao);
 bool celulaEhAtravessavel(const Jogo &j, int lin, int col);
@@ -96,8 +120,16 @@ void aplicaGravidade(Jogo &j);
 void resolveEsmagamento(Jogo &j);
 void giraCenario(Jogo &j, char tecla);
 int processaTecla(Jogo &j, char tecla);
-void reiniciaFase(Jogo &j);
+int executaSolucao(Jogo &j, string teclas, int &posicao);
+string descreveResultado(int resultado, int posicao, const Jogo &j);
+
+// orquestracao
+bool reiniciaFase(Jogo &j, string &motivo);
+int reproduzSolucao(Jogo &j, string teclas, int &posicao);
+string verificaMapa(int numero);
 void jogarPartida(Jogo &j);
+bool opcaoNovoJogo(Jogo &jogo);
+void opcaoVerSolucao();
 
 char leTecla()
 {
@@ -115,6 +147,352 @@ char leTecla()
 void limpaTela()
 {
     cout << "\033[2J\033[1;1H";
+}
+
+void pausa(int milissegundos)
+{
+    cout.flush();
+
+    usleep(milissegundos * 1000);
+}
+
+string nomeArquivoMapa(int numero, const string &extensao)
+{
+    return "mapa" + to_string(numero) + extensao;
+}
+
+bool leLinha(ifstream &arquivo, string &linha)
+{
+    if (!getline(arquivo, linha))
+    {
+        return false;
+    }
+
+    // arquivos gravados no Windows terminam cada linha com \r\n
+    if (!linha.empty() && linha[linha.length() - 1] == '\r')
+    {
+        linha.erase(linha.length() - 1);
+    }
+
+    return true;
+}
+
+bool converteInteiro(const string &texto, int &valor)
+{
+    if (texto.empty())
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < texto.length(); i++)
+    {
+        if (!isdigit((unsigned char)texto[i]))
+        {
+            return false;
+        }
+    }
+
+    try
+    {
+        valor = stoi(texto);
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool leLinhaDoMapa(const string &linha, int valores[], int n, string &motivo)
+{
+    int colunas = 1;
+
+    for (size_t i = 0; i < linha.length(); i++)
+    {
+        if (linha[i] == ',')
+        {
+            colunas++;
+        }
+    }
+
+    if (colunas != n)
+    {
+        motivo = "quantidade de colunas diferente de " + to_string(n);
+        return false;
+    }
+
+    stringstream ss(linha);
+    string campo;
+
+    for (int col = 0; col < n; col++)
+    {
+        getline(ss, campo, ',');
+
+        if (!converteInteiro(campo, valores[col]))
+        {
+            motivo = "valor nao numerico (" + campo + ")";
+            return false;
+        }
+
+        if (valores[col] < VAZIO || valores[col] > PORTA_B)
+        {
+            motivo = "valor fora do intervalo de 0 a 7 (" + campo + ")";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool carregaMapa(int numero, Jogo &j, string &motivo)
+{
+    ifstream arquivo(nomeArquivoMapa(numero, ".csv"));
+
+    if (!arquivo.is_open())
+    {
+        motivo = "arquivo inexistente";
+        return false;
+    }
+
+    // o mapa e montado numa copia: se for recusado, o jogo recebido fica intacto
+    Jogo lido;
+    string linha;
+
+    if (!leLinha(arquivo, linha) || linha.empty())
+    {
+        motivo = "dimensao ausente";
+        return false;
+    }
+
+    if (!converteInteiro(linha, lido.n))
+    {
+        motivo = "dimensao nao numerica";
+        return false;
+    }
+
+    if (lido.n < TAM_MIN || lido.n > TAM)
+    {
+        motivo = "dimensao fora do intervalo de " + to_string(TAM_MIN) + " a " + to_string(TAM);
+        return false;
+    }
+
+    if (!leLinha(arquivo, linha) || linha.empty())
+    {
+        motivo = "titulo ausente";
+        return false;
+    }
+
+    if (linha.find(',') != string::npos)
+    {
+        motivo = "titulo ausente ou com virgula";
+        return false;
+    }
+
+    lido.titulo = linha;
+
+    int mapa[TAM][TAM];
+
+    for (int lin = 0; lin < lido.n; lin++)
+    {
+        if (!leLinha(arquivo, linha))
+        {
+            motivo = "menos linhas do que a dimensao informada";
+            return false;
+        }
+
+        string motivoDaLinha;
+
+        if (!leLinhaDoMapa(linha, mapa[lin], lido.n, motivoDaLinha))
+        {
+            motivo = "linha " + to_string(lin + 1) + " do cenario: " + motivoDaLinha;
+            return false;
+        }
+    }
+
+    separaTerrenoEOcupante(mapa, lido);
+
+    lido.numeroMapa = numero;
+    lido.orientacao = 0;
+    lido.movimentos = 0;
+    lido.rotacoes = 0;
+    lido.perdido = false;
+    lido.vencido = false;
+    lido.jogador = localizaJogador(lido);
+
+    if (!validaMapa(lido, motivo))
+    {
+        return false;
+    }
+
+    j = lido;
+
+    return true;
+}
+
+int contaMapas()
+{
+    int total = 0;
+    bool existe = true;
+
+    while (existe)
+    {
+        ifstream arquivo(nomeArquivoMapa(total + 1, ".csv"));
+
+        if (arquivo.is_open())
+        {
+            total++;
+        }
+        else
+        {
+            existe = false;
+        }
+    }
+
+    return total;
+}
+
+int carregaInfoMapas(InfoMapa mapas[], int max)
+{
+    int qtd = contaMapas();
+
+    if (qtd > max)
+    {
+        qtd = max;
+    }
+
+    for (int i = 0; i < qtd; i++)
+    {
+        Jogo j;
+
+        mapas[i].numero = i + 1;
+        mapas[i].valido = carregaMapa(i + 1, j, mapas[i].motivo);
+        mapas[i].titulo = mapas[i].valido ? j.titulo : nomeArquivoMapa(i + 1, ".csv");
+    }
+
+    return qtd;
+}
+
+bool carregaSolucao(int numero, string &teclas, string &motivo)
+{
+    ifstream arquivo(nomeArquivoMapa(numero, ".sol"));
+
+    if (!arquivo.is_open())
+    {
+        motivo = "arquivo " + nomeArquivoMapa(numero, ".sol") + " inexistente";
+        return false;
+    }
+
+    if (!leLinha(arquivo, teclas))
+    {
+        teclas = "";
+    }
+
+    return true;
+}
+
+bool validaMapa(const Jogo &j, string &motivo)
+{
+    int jogadores = 0;
+    int saidas = 0;
+
+    for (int lin = 0; lin < j.n; lin++)
+    {
+        for (int col = 0; col < j.n; col++)
+        {
+            if (j.ocupante[lin][col] == JOGADOR)
+            {
+                jogadores++;
+            }
+
+            if (j.terreno[lin][col] == SAIDA)
+            {
+                saidas++;
+            }
+        }
+    }
+
+    if (jogadores == 0)
+    {
+        motivo = "nenhum jogador no mapa";
+        return false;
+    }
+
+    if (jogadores > 1)
+    {
+        motivo = "mais de um jogador no mapa";
+        return false;
+    }
+
+    if (saidas == 0)
+    {
+        motivo = "nenhuma saida no mapa";
+        return false;
+    }
+
+    if (!mapaEstavel(j))
+    {
+        motivo = "mapa instavel: algum bloco comeca no ar";
+        return false;
+    }
+
+    return true;
+}
+
+// recebe o jogo por valor de proposito: a gravidade e aplicada na copia
+bool mapaEstavel(Jogo j)
+{
+    Jogo original = j;
+
+    aplicaGravidade(j);
+
+    for (int lin = 0; lin < j.n; lin++)
+    {
+        for (int col = 0; col < j.n; col++)
+        {
+            if (j.ocupante[lin][col] != original.ocupante[lin][col])
+            {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+int sorteiaMapaValido(const InfoMapa mapas[], int qtd)
+{
+    int validos = 0;
+
+    for (int i = 0; i < qtd; i++)
+    {
+        if (mapas[i].valido)
+        {
+            validos++;
+        }
+    }
+
+    if (validos == 0)
+    {
+        return ESCOLHA_VOLTAR;
+    }
+
+    int sorteado = rand() % validos;
+
+    for (int i = 0; i < qtd; i++)
+    {
+        if (mapas[i].valido)
+        {
+            if (sorteado == 0)
+            {
+                return mapas[i].numero;
+            }
+
+            sorteado--;
+        }
+    }
+
+    return ESCOLHA_VOLTAR;
 }
 
 void separaTerrenoEOcupante(const int mapa[][TAM], Jogo &j)
@@ -136,116 +514,6 @@ void separaTerrenoEOcupante(const int mapa[][TAM], Jogo &j)
                 j.terreno[lin][col] = valor;
             }
         }
-    }
-}
-
-void carregaMapa(Jogo &j, int numeroDoMapa)
-{
-    // clang-format off
-    // Sequencia para vencer: W, Q, D, W, W, W, W, W, W, D, D
-    int mapa1[TAM][TAM] = {
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 0, 2, 0, 6, 0, 3, 0, 0, 0, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 5, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
-
-    // Sequencia para vencer: W
-    int mapa2[TAM][TAM] = {
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-        {1, 2, 4, 0, 0, 0, 0, 0, 0, 0, 1},
-        {1, 0, 0, 3, 6, 1, 0, 0, 0, 0, 1},
-        {1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1},
-        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
-
-    // MAPA 3 - exige a queda do bloco para vencer.
-    // Sequencia para vencer: W, D, D, S, S, E, D, S, S, S, D, D, D
-    int mapaBlocoCai[TAM][TAM] = {
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 5, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1},
-        {1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1},
-        {1, 2, 1, 0, 0, 0, 3, 0, 0, 1, 1},
-        {1, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1},
-        {1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
-
-    // MAPA 4 - porta A muda de estado com a rotacao.
-    // Sequencia para vencer: D, D, W, W, D, W, W, A, Q, W, D, D, S, S, S, S, S
-    int mapaPortaSome[TAM][TAM] = {
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1},
-        {1, 0, 1, 0, 0, 1, 0, 1, 0, 4, 1},
-        {1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1},
-        {1, 0, 0, 0, 0, 1, 1, 4, 0, 0, 1},
-        {1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1},
-        {1, 0, 0, 5, 0, 6, 0, 0, 0, 0, 1},
-        {1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1},
-        {1, 0, 1, 1, 1, 2, 0, 0, 0, 0, 1},
-        {1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
-
-    // MAPA 5 - exige duas ou mais rotacoes e usa portas A e B.
-    // Sequencia para vencer: W, Q, W, W, D, W, W, A, Q, W, A, A, A, A
-    int mapaDuasRotacoes[TAM][TAM] = {
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1},
-        {1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1},
-        {1, 4, 0, 0, 1, 4, 1, 1, 1, 1, 1},
-        {1, 2, 0, 6, 0, 0, 0, 7, 0, 5, 1},
-        {1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
-    // clang-format on
-
-    j.n = TAM;
-    j.numeroMapa = numeroDoMapa;
-
-    switch (numeroDoMapa)
-    {
-    case 2:
-        j.titulo = "Teste de esmagamento";
-        separaTerrenoEOcupante(mapa2, j);
-        break;
-
-    case 3:
-        j.titulo = "Bloco que cai";
-        separaTerrenoEOcupante(mapaBlocoCai, j);
-        break;
-
-    case 4:
-        j.titulo = "Porta que some";
-        separaTerrenoEOcupante(mapaPortaSome, j);
-        break;
-
-    case 5:
-        j.titulo = "Duas rotacoes";
-        separaTerrenoEOcupante(mapaDuasRotacoes, j);
-        break;
-
-    case 1:
-    default:
-        j.titulo = "Teste de rotacao";
-        separaTerrenoEOcupante(mapa1, j);
-        break;
     }
 }
 
@@ -336,7 +604,10 @@ void desenhaJogo(const Jogo &j)
     desenhaStatus(j);
 
     desenhaCenario(j);
+}
 
+void desenhaFimDePartida(const Jogo &j)
+{
     if (j.perdido)
     {
         cout << "Voce foi esmagado pela porta! Fase perdida." << endl;
@@ -547,6 +818,7 @@ void exibeMenu(bool jogoEmAndamento)
         cout << "[C] Continuar" << endl;
     }
 
+    cout << "[V] Ver solucao" << endl;
     cout << "[S] Sobre" << endl;
     cout << "[F] Fim" << endl;
     cout << "> ";
@@ -584,8 +856,14 @@ string leNomeJogador()
     while (!nomeValido)
     {
         cout << "Digite o seu nome (ate 15 caracteres, sem virgula): ";
-        getline(cin, nome);
 
+        if (!getline(cin, nome))
+        {
+            cin.clear();
+            return "Anonimo";
+        }
+
+        // o '|' ainda e o separador do placar.txt
         if (nome.empty())
             cout << "O nome nao pode ficar vazio." << endl;
         else if (nome.length() > 15)
@@ -599,38 +877,84 @@ string leNomeJogador()
     return nome;
 }
 
-int escolheMapa(int primeiroMapa, int ultimoMapa)
+void exibeListaMapas(const InfoMapa mapas[], int qtd)
 {
-    cout << "Novo jogo - mapa especifico ou aleatorio? (E/A): ";
-
-    char tecla = tolower(leTecla());
-
-    cout << endl;
-
-    if (tecla == 'a')
+    if (qtd == 0)
     {
-        return primeiroMapa + (rand() % (ultimoMapa - primeiroMapa + 1));
+        cout << "Nenhum arquivo de mapa encontrado (mapa1.csv, mapa2.csv, ...)." << endl;
     }
 
-    int escolhido;
-
-    do
+    for (int i = 0; i < qtd; i++)
     {
-        cout << "Escolha o mapa (" << primeiroMapa << " a " << ultimoMapa << "): ";
+        cout << mapas[i].numero << ". " << mapas[i].titulo;
 
-        cin >> escolhido;
-
-        if (cin.fail())
+        if (!mapas[i].valido)
         {
-            cin.clear();
-            escolhido = 0;
+            cout << " - indisponivel: " << mapas[i].motivo;
         }
 
-        cin.ignore(10000, '\n');
+        cout << endl;
+    }
 
-    } while (escolhido < primeiroMapa || escolhido > ultimoMapa);
+    cout << endl;
+}
 
-    return escolhido;
+int escolheMapa(const InfoMapa mapas[], int qtd, bool paraSolucao)
+{
+    exibeListaMapas(mapas, qtd);
+
+    if (sorteiaMapaValido(mapas, qtd) == ESCOLHA_VOLTAR)
+    {
+        cout << "Nenhum mapa disponivel. Pressione qualquer tecla para voltar ao menu..." << endl;
+        leTecla();
+
+        return ESCOLHA_VOLTAR;
+    }
+
+    while (true)
+    {
+        if (paraSolucao)
+            cout << "Numero do mapa, T para verificar todos ou 0 para voltar: ";
+        else
+            cout << "Numero do mapa, A para aleatorio ou 0 para voltar: ";
+
+        string resposta;
+
+        if (!getline(cin, resposta))
+        {
+            cin.clear();
+            return ESCOLHA_VOLTAR;
+        }
+
+        int numero;
+
+        if (resposta.length() == 1 && tolower(resposta[0]) == 't' && paraSolucao)
+        {
+            return ESCOLHA_TODOS;
+        }
+
+        if (resposta.length() == 1 && tolower(resposta[0]) == 'a' && !paraSolucao)
+        {
+            return sorteiaMapaValido(mapas, qtd);
+        }
+
+        if (!converteInteiro(resposta, numero) || numero > qtd)
+        {
+            cout << "Opcao invalida." << endl;
+        }
+        else if (numero == 0)
+        {
+            return ESCOLHA_VOLTAR;
+        }
+        else if (!mapas[numero - 1].valido)
+        {
+            cout << "Esse mapa esta indisponivel: " << mapas[numero - 1].motivo << endl;
+        }
+        else
+        {
+            return numero;
+        }
+    }
 }
 
 Posicao localizaJogador(const Jogo &j)
@@ -904,26 +1228,115 @@ int processaTecla(Jogo &j, char tecla)
     return TECLA_OK;
 }
 
-void reiniciaFase(Jogo &j)
+int executaSolucao(Jogo &j, string teclas, int &posicao)
 {
-    carregaMapa(j, j.numeroMapa);
+    posicao = 0;
 
-    j.jogador = localizaJogador(j);
+    for (size_t i = 0; i < teclas.length(); i++)
+    {
+        posicao = i + 1;
 
-    j.orientacao = 0;
-    j.movimentos = 0;
-    j.rotacoes = 0;
-    j.perdido = false;
-    j.vencido = false;
+        int resultado = processaTecla(j, teclas[i]);
+
+        if (resultado == TECLA_INVALIDA)
+            return SOL_TECLA_INVALIDA;
+
+        if (resultado == TECLA_PERDEU)
+            return SOL_DERROTA;
+
+        if (resultado == TECLA_VENCEU)
+            return SOL_VALIDA;
+    }
+
+    return SOL_INCOMPLETA;
+}
+
+string descreveResultado(int resultado, int posicao, const Jogo &j)
+{
+    switch (resultado)
+    {
+    case SOL_VALIDA:
+        return "solucao valida: " + to_string(posicao) + " teclas, " +
+               to_string(j.movimentos) + " movimentos, " +
+               to_string(j.rotacoes) + " rotacoes";
+
+    case SOL_DERROTA:
+        return "derrota na tecla " + to_string(posicao);
+
+    case SOL_TECLA_INVALIDA:
+        return "tecla invalida na posicao " + to_string(posicao);
+
+    default:
+        return "as teclas acabaram e o jogador nao chegou a saida";
+    }
+}
+
+bool reiniciaFase(Jogo &j, string &motivo)
+{
+    return carregaMapa(j.numeroMapa, j, motivo);
+}
+
+// executa uma tecla de cada vez pela propria executaSolucao, desenhando entre elas
+int reproduzSolucao(Jogo &j, string teclas, int &posicao)
+{
+    int resultado = SOL_INCOMPLETA;
+
+    posicao = 0;
+
+    desenhaJogo(j);
+    pausa(PAUSA_MS);
+
+    for (size_t i = 0; i < teclas.length() && resultado == SOL_INCOMPLETA; i++)
+    {
+        int posicaoNaTecla;
+
+        resultado = executaSolucao(j, string(1, teclas[i]), posicaoNaTecla);
+        posicao = i + 1;
+
+        desenhaJogo(j);
+        cout << "Tecla " << posicao << " de " << teclas.length() << ": " << teclas[i] << endl;
+        pausa(PAUSA_MS);
+    }
+
+    return resultado;
+}
+
+string verificaMapa(int numero)
+{
+    Jogo j;
+    string teclas, motivo;
+
+    if (!carregaMapa(numero, j, motivo))
+    {
+        return "indisponivel: " + motivo;
+    }
+
+    if (!carregaSolucao(numero, teclas, motivo))
+    {
+        return motivo;
+    }
+
+    int posicao;
+    int resultado = executaSolucao(j, teclas, posicao);
+
+    return descreveResultado(resultado, posicao, j);
 }
 
 void jogarPartida(Jogo &j)
 {
     bool jogando = true;
+    string aviso;
 
     while (jogando)
     {
         desenhaJogo(j);
+        desenhaFimDePartida(j);
+
+        if (!aviso.empty())
+        {
+            cout << aviso << endl;
+            aviso = "";
+        }
 
         char tecla = tolower(leTecla());
 
@@ -934,7 +1347,12 @@ void jogarPartida(Jogo &j)
         }
         else if (tecla == 'r')
         {
-            reiniciaFase(j);
+            string motivo;
+
+            if (!reiniciaFase(j, motivo))
+            {
+                aviso = "Nao foi possivel reiniciar a fase: " + motivo;
+            }
         }
         else if (processaTecla(j, tecla) == TECLA_VENCEU)
         {
@@ -969,6 +1387,88 @@ void jogarPartida(Jogo &j)
     }
 }
 
+bool opcaoNovoJogo(Jogo &jogo)
+{
+    InfoMapa mapas[MAX_MAPAS];
+    int qtd = carregaInfoMapas(mapas, MAX_MAPAS);
+
+    limpaTela();
+    cout << "===== NOVO JOGO =====" << endl;
+
+    int escolha = escolheMapa(mapas, qtd, false);
+
+    if (escolha == ESCOLHA_VOLTAR)
+    {
+        return false;
+    }
+
+    string motivo;
+
+    if (!carregaMapa(escolha, jogo, motivo))
+    {
+        cout << "Nao foi possivel carregar o mapa: " << motivo << endl;
+        cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
+        leTecla();
+
+        return false;
+    }
+
+    return true;
+}
+
+void opcaoVerSolucao()
+{
+    InfoMapa mapas[MAX_MAPAS];
+    int qtd = carregaInfoMapas(mapas, MAX_MAPAS);
+
+    limpaTela();
+    cout << "===== VER SOLUCAO =====" << endl;
+
+    int escolha = escolheMapa(mapas, qtd, true);
+
+    if (escolha == ESCOLHA_VOLTAR)
+    {
+        return;
+    }
+
+    if (escolha == ESCOLHA_TODOS)
+    {
+        limpaTela();
+        cout << "===== VERIFICAR TODOS OS MAPAS =====" << endl;
+
+        for (int i = 0; i < qtd; i++)
+        {
+            cout << mapas[i].numero << ". " << mapas[i].titulo << " - "
+                 << verificaMapa(mapas[i].numero) << endl;
+        }
+    }
+    else
+    {
+        Jogo j;
+        string teclas, motivo;
+
+        if (!carregaMapa(escolha, j, motivo))
+        {
+            cout << "Mapa indisponivel: " << motivo << endl;
+        }
+        else if (!carregaSolucao(escolha, teclas, motivo))
+        {
+            cout << "Nao ha solucao para reproduzir: " << motivo << endl;
+        }
+        else
+        {
+            int posicao;
+            int resultado = reproduzSolucao(j, teclas, posicao);
+
+            cout << "Resultado: " << descreveResultado(resultado, posicao, j) << endl;
+        }
+    }
+
+    cout << endl;
+    cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
+    leTecla();
+}
+
 int main()
 {
     Jogo jogo;
@@ -995,14 +1495,17 @@ int main()
         {
             exibeSobre();
         }
+        else if (opcao == 'v')
+        {
+            opcaoVerSolucao();
+        }
         else if (opcao == 'n')
         {
-            jogo.numeroMapa = escolheMapa(PRIMEIRO_MAPA_OFICIAL, NUM_MAPAS);
-
-            reiniciaFase(jogo);
-
-            jogoEmAndamento = true;
-            jogar = true;
+            if (opcaoNovoJogo(jogo))
+            {
+                jogoEmAndamento = true;
+                jogar = true;
+            }
         }
         else if (opcao == 'c' && jogoEmAndamento)
         {
@@ -1013,6 +1516,7 @@ int main()
         {
             jogarPartida(jogo);
 
+            // jogo vencido ou perdido nao pode ser retomado pelo Continuar
             jogoEmAndamento = !jogo.perdido && !jogo.vencido;
         }
     }

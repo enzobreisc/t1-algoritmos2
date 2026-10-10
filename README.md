@@ -46,9 +46,10 @@ No VS Code tambem existe uma task de build pronta (`Cmd+Shift+B`), definida em
 
 ## Menu
 
-- `[N]` Novo jogo - permite escolher um mapa especifico ou sortear um aleatorio
+- `[N]` Novo jogo - lista os mapas pelo titulo; escolha por numero ou aleatoria
 - `[C]` Continuar - aparece apenas quando existe uma partida em andamento
   (uma partida vencida ou perdida nao pode ser retomada)
+- `[V]` Ver solucao - reproduz o `mapaN.sol` de um mapa ou verifica todos
 - `[S]` Sobre - dados da equipe e regras
 - `[F]` Fim - encerra o programa
 
@@ -79,15 +80,21 @@ No VS Code tambem existe uma task de build pronta (`Cmd+Shift+B`), definida em
 
 ## Mapas
 
-Sao 5 mapas no total. Os mapas 1 e 2 sao apenas de teste (Etapas 1 e 6) e nao
-aparecem no menu; os mapas jogaveis sao do 3 ao 5:
+Os mapas ficam em arquivos na pasta de execucao: `mapa1.csv`, `mapa2.csv`, ...
+O jogo descobre quantos existem tentando abrir um por um ate faltar um numero.
+Cada mapa tem a sua solucao em `mapaN.sol`.
 
-- **Mapa 3** - exige a queda do bloco para vencer
-- **Mapa 4** - a porta A muda de estado com a rotacao
-- **Mapa 5** - exige duas ou mais rotacoes e usa as portas A e B
+- **Mapa 1 - Bloco que abre passagem** - exige a queda do bloco para vencer
+- **Mapa 2 - Porta que some** - a porta A muda de estado com a rotacao
+- **Mapa 3 - Duas rotacoes** - exige duas rotacoes e usa as portas A e B
 
-Cada mapa tem, no proprio codigo, um comentario com a sequencia de teclas que
-leva a vitoria.
+Formato do `mapaN.csv`: a linha 1 traz a dimensao `n` (de 11 a 21), a linha 2 o
+titulo (sem virgulas) e as `n` linhas seguintes trazem `n` codigos de 0 a 7
+separados por virgula. Um mapa invalido aparece na lista como indisponivel,
+com o motivo.
+
+Formato do `mapaN.sol`: uma unica linha so com as teclas `W A S D Q E`
+(maiusculas ou minusculas), sem espacos.
 
 ## Organizacao do codigo
 
