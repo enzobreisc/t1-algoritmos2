@@ -11,3 +11,6 @@ labirinto
 .DS_Store
 
 index copy.cpp
+placar.txt
+jogo_salvo.csv
+recordes.csv
