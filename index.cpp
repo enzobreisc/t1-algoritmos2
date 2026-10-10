@@ -22,32 +22,74 @@ using namespace std;
 #define PORTA_A 6
 #define PORTA_B 7
 
+struct Posicao
+{
+    int lin, col;
+};
+
+struct Jogo
+{
+    int terreno[TAM][TAM];
+    int ocupante[TAM][TAM];
+    int n;
+    int orientacao;
+    Posicao jogador;
+    int movimentos, rotacoes;
+    int numeroMapa;
+    string titulo;
+    bool perdido, vencido;
+};
+
+struct Recorde
+{
+    string nome;
+    int mapa, movimentos, rotacoes;
+};
+
+struct InfoMapa
+{
+    int numero;
+    string titulo;
+    bool valido;
+    string motivo;
+};
+
+template <typename T>
+void trocar(T &a, T &b)
+{
+    T aux = a;
+    a = b;
+    b = aux;
+}
+
 char leTecla();
 void limpaTela();
-void separaTerrenoEOcupante(const int mapa[][TAM], int terreno[][TAM], int ocupante[][TAM], int n);
-void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa);
+void separaTerrenoEOcupante(const int mapa[][TAM], Jogo &j);
+void carregaMapa(Jogo &j, int numeroDoMapa);
 void exibeMenu(bool jogoEmAndamento);
 void exibeSobre();
 void exibePlacar(int numeroDoMapa, const string &nomeJogador);
 void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos, int &posicao);
 string leNomeJogador();
 int escolheMapa(int primeiroMapa, int ultimoMapa);
-void desenhaCenario(const int terreno[][TAM], const int ocupante[][TAM], int n, int orientacao);
-void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoes);
-void localizaJogador(const int ocupante[][TAM], int n, int &px, int &py);
+void desenhaCenario(const Jogo &j);
+void desenhaStatus(const Jogo &j);
+void desenhaJogo(const Jogo &j);
+Posicao localizaJogador(const Jogo &j);
 bool portaEstaFechada(int celula, int orientacao);
-bool celulaEhAtravessavel(const int terreno[][TAM], const int ocupante[][TAM], int n, int lin, int col, int orientacao);
-bool moveJogador(int terreno[][TAM], int ocupante[][TAM], int n, int &px, int &py, char tecla, int orientacao);
-bool jogadorVenceu(const int terreno[][TAM], int px, int py);
-bool estaSobreAlavanca(const int terreno[][TAM], int px, int py);
-void giraDireita(const int origem[][TAM], int destino[][TAM], int n);
-void giraEsquerda(const int origem[][TAM], int destino[][TAM], int n);
-bool celulaSustentaBloco(const int terreno[][TAM], const int ocupante[][TAM], int n, int lin, int col, int orientacao);
-void aplicaGravidade(const int terreno[][TAM], int ocupante[][TAM], int n, int orientacao);
-void resolveEsmagamento(const int terreno[][TAM], int ocupante[][TAM], int n, int orientacao, bool &jogoPerdido);
-void giraCenario(int terreno[][TAM], int ocupante[][TAM], int n, int &orientacao, char tecla, bool &jogoPerdido);
-void reiniciaFase(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido);
-void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido, bool &jogoVencido, bool &placarRegistrado);
+bool celulaEhAtravessavel(const Jogo &j, int lin, int col);
+bool moveJogador(Jogo &j, char tecla);
+bool jogadorVenceu(const Jogo &j);
+bool estaSobreAlavanca(const Jogo &j);
+void copiaMatriz(const int origem[][TAM], int destino[][TAM], int n);
+void giraDireita(Jogo &j);
+void giraEsquerda(Jogo &j);
+bool celulaSustentaBloco(const Jogo &j, int lin, int col);
+void aplicaGravidade(Jogo &j);
+void resolveEsmagamento(Jogo &j);
+void giraCenario(Jogo &j, char tecla);
+void reiniciaFase(Jogo &j);
+void jogarPartida(Jogo &j);
 
 char leTecla()
 {
@@ -67,29 +109,29 @@ void limpaTela()
     cout << "\033[2J\033[1;1H";
 }
 
-void separaTerrenoEOcupante(const int mapa[][TAM], int terreno[][TAM], int ocupante[][TAM], int n)
+void separaTerrenoEOcupante(const int mapa[][TAM], Jogo &j)
 {
-    for (int i = 0; i < n; i++)
+    for (int lin = 0; lin < j.n; lin++)
     {
-        for (int j = 0; j < n; j++)
+        for (int col = 0; col < j.n; col++)
         {
-            int valor = mapa[i][j];
+            int valor = mapa[lin][col];
 
             if (valor == JOGADOR || valor == BLOCO)
             {
-                ocupante[i][j] = valor;
-                terreno[i][j] = VAZIO;
+                j.ocupante[lin][col] = valor;
+                j.terreno[lin][col] = VAZIO;
             }
             else
             {
-                ocupante[i][j] = VAZIO;
-                terreno[i][j] = valor;
+                j.ocupante[lin][col] = VAZIO;
+                j.terreno[lin][col] = valor;
             }
         }
     }
 }
 
-void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa)
+void carregaMapa(Jogo &j, int numeroDoMapa)
 {
     // clang-format off
     // Sequencia para vencer: W, Q, D, W, W, W, W, W, W, D, D
@@ -166,27 +208,35 @@ void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMap
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
     // clang-format on
 
+    j.n = TAM;
+    j.numeroMapa = numeroDoMapa;
+
     switch (numeroDoMapa)
     {
     case 2:
-        separaTerrenoEOcupante(mapa2, terreno, ocupante, n);
+        j.titulo = "Teste de esmagamento";
+        separaTerrenoEOcupante(mapa2, j);
         break;
 
     case 3:
-        separaTerrenoEOcupante(mapaBlocoCai, terreno, ocupante, n);
+        j.titulo = "Bloco que cai";
+        separaTerrenoEOcupante(mapaBlocoCai, j);
         break;
 
     case 4:
-        separaTerrenoEOcupante(mapaPortaSome, terreno, ocupante, n);
+        j.titulo = "Porta que some";
+        separaTerrenoEOcupante(mapaPortaSome, j);
         break;
 
     case 5:
-        separaTerrenoEOcupante(mapaDuasRotacoes, terreno, ocupante, n);
+        j.titulo = "Duas rotacoes";
+        separaTerrenoEOcupante(mapaDuasRotacoes, j);
         break;
 
     case 1:
     default:
-        separaTerrenoEOcupante(mapa1, terreno, ocupante, n);
+        j.titulo = "Teste de rotacao";
+        separaTerrenoEOcupante(mapa1, j);
         break;
     }
 }
@@ -195,36 +245,36 @@ bool portaEstaFechada(int celula, int orientacao)
 {
     if (celula == PORTA_A)
     {
-        return orientacao == 0 || orientacao == 180;
+        return orientacao == 0 || orientacao == 2;
     }
 
     if (celula == PORTA_B)
     {
-        return orientacao == 90 || orientacao == 270;
+        return orientacao == 1 || orientacao == 3;
     }
 
     return false;
 }
 
-void desenhaCenario(const int terreno[][TAM], const int ocupante[][TAM], int n, int orientacao)
+void desenhaCenario(const Jogo &j)
 {
-    for (int i = 0; i < n; i++)
+    for (int lin = 0; lin < j.n; lin++)
     {
-        for (int j = 0; j < n; j++)
+        for (int col = 0; col < j.n; col++)
         {
             char simbolo;
 
-            if (ocupante[i][j] == JOGADOR)
+            if (j.ocupante[lin][col] == JOGADOR)
             {
                 simbolo = '@';
             }
-            else if (ocupante[i][j] == BLOCO)
+            else if (j.ocupante[lin][col] == BLOCO)
             {
                 simbolo = 'O';
             }
             else
             {
-                switch (terreno[i][j])
+                switch (j.terreno[lin][col])
                 {
                 case VAZIO:
                     simbolo = ' ';
@@ -243,11 +293,11 @@ void desenhaCenario(const int terreno[][TAM], const int ocupante[][TAM], int n, 
                     break;
 
                 case PORTA_A:
-                    simbolo = portaEstaFechada(terreno[i][j], orientacao) ? '=' : ':';
+                    simbolo = portaEstaFechada(j.terreno[lin][col], j.orientacao) ? '=' : ':';
                     break;
 
                 case PORTA_B:
-                    simbolo = portaEstaFechada(terreno[i][j], orientacao) ? '|' : ';';
+                    simbolo = portaEstaFechada(j.terreno[lin][col], j.orientacao) ? '|' : ';';
                     break;
 
                 default:
@@ -263,22 +313,35 @@ void desenhaCenario(const int terreno[][TAM], const int ocupante[][TAM], int n, 
     }
 }
 
-void desenhaStatus(int numeroDoMapa, int orientacao, int movimentos, int rotacoes)
+void desenhaStatus(const Jogo &j)
 {
-    cout << "Mapa: " << numeroDoMapa;
-    cout << "  Orientacao: " << orientacao;
-    cout << "  Movimentos: " << movimentos;
-    cout << "  Rotacoes: " << rotacoes << endl;
+    cout << "Mapa: " << j.numeroMapa << " - " << j.titulo << endl;
+    cout << "Orientacao: " << j.orientacao * 90;
+    cout << "  Movimentos: " << j.movimentos;
+    cout << "  Rotacoes: " << j.rotacoes << endl;
 }
 
-struct RegistroPlacar
+void desenhaJogo(const Jogo &j)
 {
-    int mapa;
-    string nome;
-    int movimentos;
-};
+    limpaTela();
 
-void carregaTodosOsPlacar(vector<RegistroPlacar> &registros)
+    desenhaStatus(j);
+
+    desenhaCenario(j);
+
+    if (j.perdido)
+    {
+        cout << "Voce foi esmagado pela porta! Fase perdida." << endl;
+        cout << "Pressione R para reiniciar ou ESC para voltar ao menu." << endl;
+    }
+    else if (j.vencido)
+    {
+        cout << "Parabens! Voce venceu!" << endl;
+        cout << "Pressione R para jogar novamente ou ESC para voltar ao menu." << endl;
+    }
+}
+
+void carregaTodosOsPlacar(vector<Recorde> &registros)
 {
     ifstream arquivo("placar.txt");
 
@@ -304,10 +367,11 @@ void carregaTodosOsPlacar(vector<RegistroPlacar> &registros)
 
         try
         {
-            RegistroPlacar registro;
+            Recorde registro;
             registro.mapa = stoi(mapaTexto);
             registro.nome = nome;
             registro.movimentos = stoi(movimentosTexto);
+            registro.rotacoes = 0;
             registros.push_back(registro);
         }
         catch (...)
@@ -316,11 +380,11 @@ void carregaTodosOsPlacar(vector<RegistroPlacar> &registros)
     }
 }
 
-void salvaTodosOsPlacar(const vector<RegistroPlacar> &registros)
+void salvaTodosOsPlacar(const vector<Recorde> &registros)
 {
     ofstream arquivo("placar.txt", ios::trunc);
 
-    for (const RegistroPlacar &registro : registros)
+    for (const Recorde &registro : registros)
     {
         arquivo << registro.mapa << "|"
                 << registro.nome << "|"
@@ -328,10 +392,10 @@ void salvaTodosOsPlacar(const vector<RegistroPlacar> &registros)
     }
 }
 
-void ordenaPlacar(vector<RegistroPlacar> &registros)
+void ordenaPlacar(vector<Recorde> &registros)
 {
     sort(registros.begin(), registros.end(),
-         [](const RegistroPlacar &a, const RegistroPlacar &b)
+         [](const Recorde &a, const Recorde &b)
          {
              if (a.mapa != b.mapa)
                  return a.mapa < b.mapa;
@@ -345,7 +409,7 @@ void ordenaPlacar(vector<RegistroPlacar> &registros)
 
 void exibePlacar(int numeroDoMapa, const string &nomeJogador)
 {
-    vector<RegistroPlacar> registros;
+    vector<Recorde> registros;
     carregaTodosOsPlacar(registros);
     ordenaPlacar(registros);
 
@@ -355,7 +419,7 @@ void exibePlacar(int numeroDoMapa, const string &nomeJogador)
     int posicao = 1;
     bool encontrouJogador = false;
 
-    for (const RegistroPlacar &registro : registros)
+    for (const Recorde &registro : registros)
     {
         if (registro.mapa != numeroDoMapa)
             continue;
@@ -386,12 +450,12 @@ void exibePlacar(int numeroDoMapa, const string &nomeJogador)
 
 void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos, int &posicao)
 {
-    vector<RegistroPlacar> registros;
+    vector<Recorde> registros;
     carregaTodosOsPlacar(registros);
 
     int melhorAnterior = -1;
 
-    for (const RegistroPlacar &registro : registros)
+    for (const Recorde &registro : registros)
     {
         if (registro.mapa == numeroDoMapa &&
             registro.nome == nomeJogador)
@@ -406,9 +470,9 @@ void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos,
     if (melhorAnterior != -1 && melhorAnterior < melhorResultado)
         melhorResultado = melhorAnterior;
 
-    vector<RegistroPlacar> novosRegistros;
+    vector<Recorde> novosRegistros;
 
-    for (const RegistroPlacar &registro : registros)
+    for (const Recorde &registro : registros)
     {
         if (registro.mapa == numeroDoMapa &&
             registro.nome == nomeJogador)
@@ -419,14 +483,14 @@ void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos,
         novosRegistros.push_back(registro);
     }
 
-    novosRegistros.push_back({numeroDoMapa, nomeJogador, melhorResultado});
+    novosRegistros.push_back({nomeJogador, numeroDoMapa, melhorResultado, 0});
 
     ordenaPlacar(novosRegistros);
 
-    vector<RegistroPlacar> resultadoFinal;
+    vector<Recorde> resultadoFinal;
     int quantidadeDoMapa = 0;
 
-    for (const RegistroPlacar &registro : novosRegistros)
+    for (const Recorde &registro : novosRegistros)
     {
         if (registro.mapa == numeroDoMapa)
         {
@@ -448,7 +512,7 @@ void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos,
     posicao = 11;
     int contador = 0;
 
-    for (const RegistroPlacar &registro : resultadoFinal)
+    for (const Recorde &registro : resultadoFinal)
     {
         if (registro.mapa != numeroDoMapa)
             continue;
@@ -561,141 +625,168 @@ int escolheMapa(int primeiroMapa, int ultimoMapa)
     return escolhido;
 }
 
-void localizaJogador(const int ocupante[][TAM], int n, int &px, int &py)
+Posicao localizaJogador(const Jogo &j)
 {
-    for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < n; j++)
-        {
-            if (ocupante[i][j] == JOGADOR)
-            {
-                px = i;
-                py = j;
+    Posicao p = {0, 0};
 
-                return;
+    for (int lin = 0; lin < j.n; lin++)
+    {
+        for (int col = 0; col < j.n; col++)
+        {
+            if (j.ocupante[lin][col] == JOGADOR)
+            {
+                p.lin = lin;
+                p.col = col;
+
+                return p;
             }
         }
     }
+
+    return p;
 }
 
-bool jogadorVenceu(const int terreno[][TAM], int px, int py)
+bool jogadorVenceu(const Jogo &j)
 {
-    return terreno[px][py] == SAIDA;
+    return j.terreno[j.jogador.lin][j.jogador.col] == SAIDA;
 }
 
-bool estaSobreAlavanca(const int terreno[][TAM], int px, int py)
+bool estaSobreAlavanca(const Jogo &j)
 {
-    return terreno[px][py] == ALAVANCA;
+    return j.terreno[j.jogador.lin][j.jogador.col] == ALAVANCA;
 }
 
-void giraDireita(const int origem[][TAM], int destino[][TAM], int n)
+void copiaMatriz(const int origem[][TAM], int destino[][TAM], int n)
 {
-    for (int i = 0; i < n; i++)
+    for (int lin = 0; lin < n; lin++)
     {
-        for (int j = 0; j < n; j++)
+        for (int col = 0; col < n; col++)
         {
-            destino[j][n - 1 - i] = origem[i][j];
+            destino[lin][col] = origem[lin][col];
         }
     }
 }
 
-void giraEsquerda(const int origem[][TAM], int destino[][TAM], int n)
+void giraDireita(Jogo &j)
 {
-    for (int i = 0; i < n; i++)
+    int terrenoAux[TAM][TAM];
+    int ocupanteAux[TAM][TAM];
+
+    for (int lin = 0; lin < j.n; lin++)
     {
-        for (int j = 0; j < n; j++)
+        for (int col = 0; col < j.n; col++)
         {
-            destino[n - 1 - j][i] = origem[i][j];
+            terrenoAux[col][j.n - 1 - lin] = j.terreno[lin][col];
+            ocupanteAux[col][j.n - 1 - lin] = j.ocupante[lin][col];
         }
     }
+
+    copiaMatriz(terrenoAux, j.terreno, j.n);
+    copiaMatriz(ocupanteAux, j.ocupante, j.n);
 }
 
-bool celulaEhAtravessavel(const int terreno[][TAM], const int ocupante[][TAM], int n, int lin, int col, int orientacao)
+void giraEsquerda(Jogo &j)
 {
-    if (lin < 0 || lin >= n || col < 0 || col >= n)
+    int terrenoAux[TAM][TAM];
+    int ocupanteAux[TAM][TAM];
+
+    for (int lin = 0; lin < j.n; lin++)
+    {
+        for (int col = 0; col < j.n; col++)
+        {
+            terrenoAux[j.n - 1 - col][lin] = j.terreno[lin][col];
+            ocupanteAux[j.n - 1 - col][lin] = j.ocupante[lin][col];
+        }
+    }
+
+    copiaMatriz(terrenoAux, j.terreno, j.n);
+    copiaMatriz(ocupanteAux, j.ocupante, j.n);
+}
+
+bool celulaEhAtravessavel(const Jogo &j, int lin, int col)
+{
+    if (lin < 0 || lin >= j.n || col < 0 || col >= j.n)
     {
         return false;
     }
 
-    if (ocupante[lin][col] != VAZIO)
+    if (j.ocupante[lin][col] != VAZIO)
     {
         return false;
     }
 
-    int valorTerreno = terreno[lin][col];
+    int valorTerreno = j.terreno[lin][col];
 
     if (valorTerreno == PORTA_A || valorTerreno == PORTA_B)
     {
-        return !portaEstaFechada(valorTerreno, orientacao);
+        return !portaEstaFechada(valorTerreno, j.orientacao);
     }
 
     return valorTerreno == VAZIO || valorTerreno == ALAVANCA || valorTerreno == SAIDA;
 }
 
-bool moveJogador(int terreno[][TAM], int ocupante[][TAM], int n, int &px, int &py, char tecla, int orientacao)
+bool moveJogador(Jogo &j, char tecla)
 {
-    int novoLin = px;
-    int novoCol = py;
+    Posicao nova = j.jogador;
 
     if (tecla == 'w')
-        novoLin = px - 1;
+        nova.lin--;
     else if (tecla == 's')
-        novoLin = px + 1;
+        nova.lin++;
     else if (tecla == 'a')
-        novoCol = py - 1;
+        nova.col--;
     else if (tecla == 'd')
-        novoCol = py + 1;
+        nova.col++;
     else
         return false;
 
-    if (!celulaEhAtravessavel(terreno, ocupante, n, novoLin, novoCol, orientacao))
+    if (!celulaEhAtravessavel(j, nova.lin, nova.col))
         return false;
 
-    ocupante[px][py] = VAZIO;
-    ocupante[novoLin][novoCol] = JOGADOR;
+    j.ocupante[j.jogador.lin][j.jogador.col] = VAZIO;
+    j.ocupante[nova.lin][nova.col] = JOGADOR;
 
-    px = novoLin;
-    py = novoCol;
+    j.jogador = nova;
 
     return true;
 }
 
-bool celulaSustentaBloco(const int terreno[][TAM], const int ocupante[][TAM], int n, int lin, int col, int orientacao)
+bool celulaSustentaBloco(const Jogo &j, int lin, int col)
 {
-    if (lin < 0 || lin >= n || col < 0 || col >= n)
+    if (lin < 0 || lin >= j.n || col < 0 || col >= j.n)
     {
         return true;
     }
 
-    if (ocupante[lin][col] == BLOCO || ocupante[lin][col] == JOGADOR)
+    if (j.ocupante[lin][col] == BLOCO || j.ocupante[lin][col] == JOGADOR)
     {
         return true;
     }
 
-    int valorTerreno = terreno[lin][col];
+    int valorTerreno = j.terreno[lin][col];
 
     if (valorTerreno == PORTA_A || valorTerreno == PORTA_B)
     {
-        return portaEstaFechada(valorTerreno, orientacao);
+        return portaEstaFechada(valorTerreno, j.orientacao);
     }
 
     return valorTerreno == PAREDE;
 }
 
-void aplicaGravidade(const int terreno[][TAM], int ocupante[][TAM], int n, int orientacao)
+void aplicaGravidade(Jogo &j)
 {
-    for (int i = n - 2; i >= 0; i--)
+    for (int i = j.n - 2; i >= 0; i--)
     {
-        for (int j = 0; j < n; j++)
+        for (int col = 0; col < j.n; col++)
         {
-            if (ocupante[i][j] == BLOCO)
+            if (j.ocupante[i][col] == BLOCO)
             {
                 int lin = i;
 
-                while (!celulaSustentaBloco(terreno, ocupante, n, lin + 1, j, orientacao))
+                while (!celulaSustentaBloco(j, lin + 1, col))
                 {
-                    ocupante[lin][j] = VAZIO;
-                    ocupante[lin + 1][j] = BLOCO;
+                    j.ocupante[lin][col] = VAZIO;
+                    j.ocupante[lin + 1][col] = BLOCO;
 
                     lin++;
                 }
@@ -704,99 +795,74 @@ void aplicaGravidade(const int terreno[][TAM], int ocupante[][TAM], int n, int o
     }
 }
 
-void resolveEsmagamento(const int terreno[][TAM], int ocupante[][TAM], int n, int orientacao, bool &jogoPerdido)
+void resolveEsmagamento(Jogo &j)
 {
-    for (int i = 0; i < n; i++)
+    for (int lin = 0; lin < j.n; lin++)
     {
-        for (int j = 0; j < n; j++)
+        for (int col = 0; col < j.n; col++)
         {
-            int valorTerreno = terreno[i][j];
+            int valorTerreno = j.terreno[lin][col];
 
             bool ehPorta = (valorTerreno == PORTA_A || valorTerreno == PORTA_B);
 
-            if (ehPorta && portaEstaFechada(valorTerreno, orientacao))
+            if (ehPorta && portaEstaFechada(valorTerreno, j.orientacao))
             {
-                if (ocupante[i][j] == BLOCO)
+                if (j.ocupante[lin][col] == BLOCO)
                 {
-                    ocupante[i][j] = VAZIO;
+                    j.ocupante[lin][col] = VAZIO;
                 }
-                else if (ocupante[i][j] == JOGADOR)
+                else if (j.ocupante[lin][col] == JOGADOR)
                 {
-                    jogoPerdido = true;
+                    j.perdido = true;
                 }
             }
         }
     }
 }
 
-void giraCenario(int terreno[][TAM], int ocupante[][TAM], int n, int &orientacao, char tecla, bool &jogoPerdido)
+void giraCenario(Jogo &j, char tecla)
 {
-    int terrenoAux[TAM][TAM];
-    int ocupanteAux[TAM][TAM];
-
     if (tecla == 'e')
     {
-        giraDireita(terreno, terrenoAux, n);
-        giraDireita(ocupante, ocupanteAux, n);
+        giraDireita(j);
 
-        orientacao = (orientacao + 90) % 360;
+        j.orientacao = (j.orientacao + 1) % 4;
     }
     else
     {
-        giraEsquerda(terreno, terrenoAux, n);
-        giraEsquerda(ocupante, ocupanteAux, n);
+        giraEsquerda(j);
 
-        orientacao = (orientacao + 270) % 360;
+        j.orientacao = (j.orientacao + 3) % 4;
     }
 
-    for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < n; j++)
-        {
-            terreno[i][j] = terrenoAux[i][j];
-            ocupante[i][j] = ocupanteAux[i][j];
-        }
-    }
+    resolveEsmagamento(j);
 
-    resolveEsmagamento(terreno, ocupante, n, orientacao, jogoPerdido);
+    aplicaGravidade(j);
 
-    aplicaGravidade(terreno, ocupante, n, orientacao);
+    // unico ponto, alem de moveJogador, em que a posicao guardada muda
+    j.jogador = localizaJogador(j);
 }
 
-void reiniciaFase(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido)
+void reiniciaFase(Jogo &j)
 {
-    carregaMapa(terreno, ocupante, n, numeroDoMapa);
+    carregaMapa(j, j.numeroMapa);
 
-    localizaJogador(ocupante, n, px, py);
+    j.jogador = localizaJogador(j);
 
-    orientacao = 0;
-    movimentos = 0;
-    rotacoes = 0;
-    jogoPerdido = false;
+    j.orientacao = 0;
+    j.movimentos = 0;
+    j.rotacoes = 0;
+    j.perdido = false;
+    j.vencido = false;
 }
 
-void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa, int &orientacao, int &px, int &py, int &movimentos, int &rotacoes, bool &jogoPerdido, bool &jogoVencido, bool &placarRegistrado)
+void jogarPartida(Jogo &j)
 {
     bool jogando = true;
 
     while (jogando)
     {
-        limpaTela();
-
-        desenhaStatus(numeroDoMapa, orientacao, movimentos, rotacoes);
-
-        desenhaCenario(terreno, ocupante, n, orientacao);
-
-        if (jogoPerdido)
-        {
-            cout << "Voce foi esmagado pela porta! Fase perdida." << endl;
-            cout << "Pressione R para reiniciar ou ESC para voltar ao menu." << endl;
-        }
-        else if (jogoVencido)
-        {
-            cout << "Parabens! Voce venceu!" << endl;
-            cout << "Pressione R para jogar novamente ou ESC para voltar ao menu." << endl;
-        }
+        desenhaJogo(j);
 
         char tecla = tolower(leTecla());
 
@@ -808,91 +874,72 @@ void jogarPartida(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMa
 
         if (tecla == 'r')
         {
-            reiniciaFase(terreno, ocupante, n, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido);
-
-            jogoVencido = false;
-            placarRegistrado = false;
+            reiniciaFase(j);
 
             continue;
         }
 
-        if (jogoPerdido || jogoVencido)
+        if (j.perdido || j.vencido)
         {
             continue;
         }
 
         if (tecla == 'w' || tecla == 'a' || tecla == 's' || tecla == 'd')
         {
-            if (moveJogador(terreno, ocupante, n, px, py, tecla, orientacao))
+            if (moveJogador(j, tecla))
             {
-                movimentos++;
+                j.movimentos++;
             }
         }
         else if (tecla == 'q' || tecla == 'e')
         {
-            if (estaSobreAlavanca(terreno, px, py))
+            if (estaSobreAlavanca(j))
             {
-                giraCenario(terreno, ocupante, n, orientacao, tecla, jogoPerdido);
+                giraCenario(j, tecla);
 
-                localizaJogador(ocupante, n, px, py);
-
-                rotacoes++;
+                j.rotacoes++;
             }
         }
 
-        if (!jogoPerdido && jogadorVenceu(terreno, px, py))
+        if (!j.perdido && jogadorVenceu(j))
         {
-            jogoVencido = true;
+            j.vencido = true;
 
-            if (!placarRegistrado)
+            limpaTela();
+            cout << "===== MAPA " << j.numeroMapa << " CONCLUIDO =====" << endl;
+            cout << "Movimentos nesta tentativa: " << j.movimentos << endl;
+            cout << "Rotacoes: " << j.rotacoes << endl;
+            cout << endl;
+
+            string nomeJogador = leNomeJogador();
+
+            int posicao;
+            registraPlacar(j.numeroMapa, nomeJogador, j.movimentos, posicao);
+
+            if (posicao <= 10)
             {
-                limpaTela();
-                cout << "===== MAPA " << numeroDoMapa << " CONCLUIDO =====" << endl;
-                cout << "Movimentos nesta tentativa: " << movimentos << endl;
-                cout << "Rotacoes: " << rotacoes << endl;
                 cout << endl;
-
-                string nomeJogador = leNomeJogador();
-
-                int posicao;
-                registraPlacar(numeroDoMapa, nomeJogador, movimentos, posicao);
-                placarRegistrado = true;
-
-                if (posicao <= 10)
-                {
-                    cout << endl;
-                    cout << "Seu melhor resultado esta no " << posicao
-                         << "o lugar do TOP 10!" << endl;
-                }
-                else
-                {
-                    cout << endl;
-                    cout << "Seu melhor resultado esta fora do TOP 10." << endl;
-                }
-
-                exibePlacar(numeroDoMapa, nomeJogador);
-
-                cout << "Pressione qualquer tecla para continuar..." << endl;
-                leTecla();
+                cout << "Seu melhor resultado esta no " << posicao
+                     << "o lugar do TOP 10!" << endl;
             }
+            else
+            {
+                cout << endl;
+                cout << "Seu melhor resultado esta fora do TOP 10." << endl;
+            }
+
+            exibePlacar(j.numeroMapa, nomeJogador);
+
+            cout << "Pressione qualquer tecla para continuar..." << endl;
+            leTecla();
         }
     }
 }
 
 int main()
 {
-    int terreno[TAM][TAM];
-    int ocupante[TAM][TAM];
+    Jogo jogo;
 
-    int orientacao;
-    int px, py;
-    int movimentos;
-    int numeroDoMapa = 1;
-    int rotacoes;
-    bool placarRegistrado = false;
-
-    bool jogoPerdido = false;
-    bool jogoVencido = false;
     bool jogoEmAndamento = false;
 
     srand((unsigned int)time(nullptr));
@@ -917,12 +964,10 @@ int main()
         }
         else if (opcao == 'n')
         {
-            numeroDoMapa = escolheMapa(PRIMEIRO_MAPA_OFICIAL, NUM_MAPAS);
+            jogo.numeroMapa = escolheMapa(PRIMEIRO_MAPA_OFICIAL, NUM_MAPAS);
 
-            reiniciaFase(terreno, ocupante, TAM, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido);
+            reiniciaFase(jogo);
 
-            jogoVencido = false;
-            placarRegistrado = false;
             jogoEmAndamento = true;
             jogar = true;
         }
@@ -933,9 +978,9 @@ int main()
 
         if (jogar)
         {
-            jogarPartida(terreno, ocupante, TAM, numeroDoMapa, orientacao, px, py, movimentos, rotacoes, jogoPerdido, jogoVencido, placarRegistrado);
+            jogarPartida(jogo);
 
-            jogoEmAndamento = !jogoPerdido && !jogoVencido;
+            jogoEmAndamento = !jogo.perdido && !jogo.vencido;
         }
     }
 
