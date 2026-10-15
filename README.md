@@ -32,8 +32,8 @@ g++ -Wall -g index.cpp -o index
 ./index
 ```
 
-No VS Code tambem existe uma task de build pronta (`Cmd+Shift+B`), definida em
-`.vscode/tasks.json`.
+Os arquivos `mapaN.csv` e `mapaN.sol` precisam estar na pasta de onde o jogo e
+executado.
 
 ## Controles
 
@@ -222,3 +222,65 @@ Cada funcao tem um unico papel:
   mapa 1, por exemplo, com `wddssqes`). Agora `processaTecla` aplica a
   gravidade tambem depois de cada movimento. As solucoes de todos os mapas
   continuam valendo.
+
+## Funcoes: antes (M1) e depois (M2)
+
+Na M1 o estado da partida viajava em ate 13 parametros soltos. Na M2 ele fica
+todo na struct `Jogo`, e as funcoes de regra recebem `Jogo &`.
+
+| Funcao                             | Assinatura na M1                                                                                                   | Assinatura na M2                                                        | Motivo                                                                                                                             |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `carregaMapa`                      | `void carregaMapa(int terreno[][TAM], int ocupante[][TAM], int n, int numeroDoMapa)`                               | `bool carregaMapa(int numero, Jogo &j, string &motivo)`                 | Os mapas sairam do codigo e passaram a ser lidos de `mapaN.csv`. Um mapa invalido devolve `false` com o motivo, sem imprimir nada. |
+| `moveJogador`                      | `bool moveJogador(int terreno[][TAM], int ocupante[][TAM], int n, int &px, int &py, char tecla, int orientacao)`   | `bool moveJogador(Jogo &j, char tecla)`                                 | Terreno, ocupante, dimensao, posicao e orientacao estao no `Jogo`; `px`/`py` viraram `j.jogador.lin`/`col`.                        |
+| `giraCenario`                      | `void giraCenario(int terreno[][TAM], int ocupante[][TAM], int n, int &orientacao, char tecla, bool &jogoPerdido)` | `void giraCenario(Jogo &j, char tecla)`                                 | A derrota fica em `j.perdido`, a orientacao passou de graus para 0..3 e a posicao do jogador e atualizada aqui.                    |
+| `giraDireita` / `giraEsquerda`     | `void giraDireita(const int origem[][TAM], int destino[][TAM], int n)`                                             | `void giraDireita(Jogo &j)`                                             | Gira terreno e ocupante de uma vez, com matrizes auxiliares internas, ate `j.n`.                                                   |
+| `aplicaGravidade`                  | `void aplicaGravidade(const int terreno[][TAM], int ocupante[][TAM], int n, int orientacao)`                       | `void aplicaGravidade(Jogo &j)`                                         | Mesma logica sobre o `Jogo`; e reaproveitada por `mapaEstavel` numa copia.                                                         |
+| `resolveEsmagamento`               | `void resolveEsmagamento(const int terreno[][TAM], int ocupante[][TAM], int n, int orientacao, bool &jogoPerdido)` | `void resolveEsmagamento(Jogo &j)`                                      | A derrota fica em `j.perdido`.                                                                                                     |
+| `localizaJogador`                  | `void localizaJogador(const int ocupante[][TAM], int n, int &px, int &py)`                                         | `Posicao localizaJogador(const Jogo &j)`                                | Devolve a posicao numa `Posicao` em vez de dois parametros por referencia.                                                         |
+| `reiniciaFase`                     | `void reiniciaFase(...)` com 10 parametros                                                                         | `bool reiniciaFase(Jogo &j, string &motivo)`                            | Recarrega `mapaN.csv`, que pode ter ficado invalido.                                                                               |
+| `jogarPartida`                     | `void jogarPartida(...)` com 13 parametros                                                                         | `void jogarPartida(Jogo &j)` + `int processaTecla(Jogo &j, char tecla)` | As regras sairam do laco de tela para `processaTecla`, a mesma usada pela reproducao do `.sol`.                                    |
+| `desenhaCenario` / `desenhaStatus` | `void desenhaCenario(const int terreno[][TAM], const int ocupante[][TAM], int n, int orientacao)`                  | `void desenhaJogo(const Jogo &j)`                                       | So imprime, e mostra tambem o titulo do mapa.                                                                                      |
+| `registraPlacar`                   | `void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos, int &posicao)`                   | `bool registraRecorde(Recorde r, string &motivo)`                       | Em vez de reescrever o arquivo inteiro, acrescenta uma linha em `recordes.csv`.                                                    |
+| `exibeMenu`                        | `void exibeMenu(bool jogoEmAndamento)`                                                                             | `void exibeMenu(bool temJogoSalvo)`                                     | O Continuar depende do `jogo_salvo.csv`, nao de uma variavel em memoria.                                                           |
+| `escolheMapa`                      | `int escolheMapa(int primeiroMapa, int ultimoMapa)`                                                                | `int escolheMapa(const InfoMapa mapas[], int qtd, bool paraSolucao)`    | Lista os mapas descobertos pelo titulo, com o motivo dos indisponiveis.                                                            |
+
+`portaEstaFechada(int celula, int orientacao)` continua recebendo so o que
+precisa, sem o `Jogo`.
+
+## Decisoes de projeto
+
+- **Struct por valor ou por referencia.** Quem altera a partida recebe
+  `Jogo &` (as regras); quem so le recebe `const Jogo &` (o desenho e as
+  consultas, como `jogadorVenceu`). A copia so e usada quando e desejada:
+  `mapaEstavel(Jogo j)` aplica a gravidade numa copia e compara com o original,
+  e `carregaMapa`/`carregaJogoSalvo` montam a partida numa copia para nao
+  estragar o jogo recebido se o arquivo for recusado. Cada copia custa cerca de
+  3,5 KB (duas matrizes 21x21 de `int`).
+- **Terreno e ocupante separados.** Assim o jogador ou um bloco podem estar
+  sobre a alavanca, a saida ou uma porta aberta sem apagar a celula. O jogo
+  salvo grava as duas matrizes, entao o jogador sobre a alavanca volta igual.
+- **Posicao redundante com a matriz.** A posicao do jogador esta em `ocupante`
+  e em `j.jogador`. Para as duas nao divergirem, `j.jogador` so muda em
+  `moveJogador` e em `giraCenario`, e e recalculada a partir do ocupante sempre
+  que um mapa ou jogo salvo e carregado. Por isso ela nao e gravada no arquivo.
+- **O que gravar no jogo salvo e quando.** As duas matrizes, a orientacao, os
+  contadores, o numero do mapa e o titulo, so ao sair com ESC, para manter o
+  acesso a arquivo fora das regras. O arquivo e apagado na vitoria, no ESC
+  depois de uma derrota e quando um novo jogo e confirmado.
+- **Mesmas regras no jogo e na reproducao.** `processaTecla` e a unica porta
+  de entrada das regras. `jogarPartida` e `executaSolucao` so a chamam, e
+  `reproduzSolucao` chama `executaSolucao` uma tecla por vez. ESC e R sao
+  comandos da tela, nao do jogo, e ficam fora: no `.sol`, qualquer tecla alem
+  de W/A/S/D/Q/E e tecla invalida.
+- **Desempate no ranking.** Menos movimentos, depois menos rotacoes, e no
+  empate total a ordem de chegada, que o bubble sort preserva.
+- **Validacao ao carregar.** `carregaMapa` so devolve `true` para um mapa que
+  pode ser jogado: alem de conferir o formato, chama `validaMapa` (um jogador,
+  ao menos uma saida e mapa estavel). Assim nenhuma parte do jogo recebe um
+  mapa invalido.
+- **Resultados como inteiros.** Os resultados de `processaTecla`
+  (`TECLA_...`) e de `executaSolucao` (`SOL_...`) sao constantes inteiras.
+
+## Desafios extras
+
+Nenhum desafio extra do escopo foi implementado.
