@@ -89,6 +89,17 @@ Cada mapa tem a sua solucao em `mapaN.sol`.
 - **Mapa 1 - Bloco que abre passagem** - exige a queda do bloco para vencer
 - **Mapa 2 - Porta que some** - a porta A muda de estado com a rotacao
 - **Mapa 3 - Duas rotacoes** - exige duas rotacoes e usa as portas A e B
+- **Mapa 4 - Bloco no caminho** (15x15, autoral) - um bloco fecha o corredor
+  depois da primeira porta A. Girando para o lado certo (E), a gravidade leva o
+  bloco embora e bastam 2 rotacoes. Girando para o lado errado (Q), o bloco
+  escorrega para cima da porta A e tranca a passagem: e preciso girar de novo
+  para a porta fechar e esmagar o bloco, num total de 3 rotacoes.
+- **Mapa 5 - Tres alavancas** (13x13, autoral) - quatro salas ligadas por
+  portas A, B e A, cada uma com uma alavanca. Cada rotacao inverte as portas,
+  entao chegar a saida exige no minimo 3 rotacoes.
+
+As solucoes e o minimo de rotacoes dos mapas 4 e 5 foram conferidos com uma
+busca em largura que usa a propria `processaTecla` do jogo.
 
 Formato do `mapaN.csv`: a linha 1 traz a dimensao `n` (de 11 a 21), a linha 2 o
 titulo (sem virgulas) e as `n` linhas seguintes trazem `n` codigos de 0 a 7
