@@ -42,13 +42,14 @@ No VS Code tambem existe uma task de build pronta (`Cmd+Shift+B`), definida em
 | `W A S D` | Move o jogador uma celula por vez                           |
 | `Q` / `E` | Gira o cenario (anti-horario / horario) - so sobre alavanca |
 | `R`       | Reinicia a fase atual                                       |
-| `ESC`     | Volta ao menu, preservando o jogo para a opcao "Continuar"  |
+| `ESC`     | Salva a partida em `jogo_salvo.csv` e volta ao menu         |
 
 ## Menu
 
-- `[N]` Novo jogo - lista os mapas pelo titulo; escolha por numero ou aleatoria
-- `[C]` Continuar - aparece apenas quando existe uma partida em andamento
-  (uma partida vencida ou perdida nao pode ser retomada)
+- `[N]` Novo jogo - lista os mapas pelo titulo; escolha por numero ou aleatoria.
+  Se ja existir um jogo salvo, pede confirmacao antes de substitui-lo
+- `[C]` Continuar - aparece apenas quando existe um `jogo_salvo.csv` valido e
+  retoma a partida, mesmo depois de fechar o programa
 - `[V]` Ver solucao - reproduz o `mapaN.sol` de um mapa ou verifica todos
 - `[S]` Sobre - dados da equipe e regras
 - `[F]` Fim - encerra o programa
@@ -95,6 +96,35 @@ com o motivo.
 
 Formato do `mapaN.sol`: uma unica linha so com as teclas `W A S D Q E`
 (maiusculas ou minusculas), sem espacos.
+
+## Jogo salvo (`jogo_salvo.csv`)
+
+Ao sair de uma partida com `ESC`, o jogo grava o estado atual neste formato:
+
+```
+numeroMapa,n,orientacao,movimentos,rotacoes
+titulo
+n linhas do terreno (codigos de 0 a 7 separados por virgula)
+n linhas do ocupante (0 = vazio, 2 = jogador, 3 = bloco)
+```
+
+Exemplo do cabecalho: `1,11,1,5,1` (mapa 1, 11x11, girado 90 graus, 5
+movimentos, 1 rotacao). Como o terreno e o ocupante sao gravados separados, o
+jogador sobre a alavanca volta exatamente como estava. A posicao do jogador nao
+e gravada: e recalculada a partir do ocupante.
+
+Na leitura o arquivo e validado (cabecalho numerico, `n` de 11 a 21, orientacao
+de 0 a 3, quantidade de linhas e colunas, valores no intervalo e exatamente um
+jogador). Arquivo ausente, vazio ou corrompido conta como "sem jogo salvo", e a
+opcao Continuar nao aparece.
+
+Quando o arquivo deixa de existir:
+
+- **Vitoria** - o jogo salvo e apagado, entao uma partida vencida nao pode ser
+  continuada.
+- **ESC depois de uma derrota** - nada e gravado e o arquivo e apagado, para o
+  menu nao oferecer Continuar de um jogo perdido.
+- **Novo jogo confirmado** - a partida nova substitui a salva.
 
 ## Organizacao do codigo
 

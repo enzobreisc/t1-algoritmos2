@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
@@ -14,6 +15,7 @@ const int TAM = 21;
 const int TAM_MIN = 11;
 const int MAX_MAPAS = 100;
 const int PAUSA_MS = 300;
+const string ARQUIVO_JOGO_SALVO = "jogo_salvo.csv";
 
 #define VAZIO 0
 #define PAREDE 1
@@ -45,10 +47,10 @@ struct Posicao
 
 struct Jogo
 {
-    int terreno[TAM][TAM];  // o que e fixo na celula (so as n x n primeiras posicoes sao usadas)
-    int ocupante[TAM][TAM]; // o que se move sobre a celula (jogador e blocos)
-    int n;                  // dimensao do mapa atual (de TAM_MIN ate TAM)
-    int orientacao;         // 0, 1, 2 ou 3 (multiplos de 90 graus)
+    int terreno[TAM][TAM];
+    int ocupante[TAM][TAM];
+    int n;
+    int orientacao;
     Posicao jogador;
     int movimentos, rotacoes;
     int numeroMapa;
@@ -81,7 +83,7 @@ void trocar(T &a, T &b)
 char leTecla();
 void limpaTela();
 void pausa(int milissegundos);
-void exibeMenu(bool jogoEmAndamento);
+void exibeMenu(bool temJogoSalvo);
 void exibeSobre();
 void exibePlacar(int numeroDoMapa, const string &nomeJogador);
 void exibeListaMapas(const InfoMapa mapas[], int qtd);
@@ -100,6 +102,11 @@ bool carregaMapa(int numero, Jogo &j, string &motivo);
 int contaMapas();
 int carregaInfoMapas(InfoMapa mapas[], int max);
 bool carregaSolucao(int numero, string &teclas, string &motivo);
+void gravaMatriz(ofstream &arquivo, const int matriz[][TAM], int n);
+bool salvaJogo(const Jogo &j, string &motivo);
+bool carregaJogoSalvo(Jogo &j, string &motivo);
+bool existeJogoSalvo();
+void apagaJogoSalvo();
 void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos, int &posicao);
 
 void separaTerrenoEOcupante(const int mapa[][TAM], Jogo &j);
@@ -123,12 +130,12 @@ int processaTecla(Jogo &j, char tecla);
 int executaSolucao(Jogo &j, string teclas, int &posicao);
 string descreveResultado(int resultado, int posicao, const Jogo &j);
 
-// orquestracao
 bool reiniciaFase(Jogo &j, string &motivo);
 int reproduzSolucao(Jogo &j, string teclas, int &posicao);
 string verificaMapa(int numero);
 void jogarPartida(Jogo &j);
 bool opcaoNovoJogo(Jogo &jogo);
+bool opcaoContinuar(Jogo &jogo);
 void opcaoVerSolucao();
 
 char leTecla()
@@ -168,7 +175,6 @@ bool leLinha(ifstream &arquivo, string &linha)
         return false;
     }
 
-    // arquivos gravados no Windows terminam cada linha com \r\n
     if (!linha.empty() && linha[linha.length() - 1] == '\r')
     {
         linha.erase(linha.length() - 1);
@@ -255,7 +261,6 @@ bool carregaMapa(int numero, Jogo &j, string &motivo)
         return false;
     }
 
-    // o mapa e montado numa copia: se for recusado, o jogo recebido fica intacto
     Jogo lido;
     string linha;
 
@@ -391,6 +396,227 @@ bool carregaSolucao(int numero, string &teclas, string &motivo)
     return true;
 }
 
+void gravaMatriz(ofstream &arquivo, const int matriz[][TAM], int n)
+{
+    for (int lin = 0; lin < n; lin++)
+    {
+        for (int col = 0; col < n; col++)
+        {
+            if (col > 0)
+            {
+                arquivo << ",";
+            }
+
+            arquivo << matriz[lin][col];
+        }
+
+        arquivo << endl;
+    }
+}
+
+bool salvaJogo(const Jogo &j, string &motivo)
+{
+    ofstream arquivo(ARQUIVO_JOGO_SALVO, ios::trunc);
+
+    if (!arquivo.is_open())
+    {
+        motivo = "nao foi possivel criar " + ARQUIVO_JOGO_SALVO;
+        return false;
+    }
+
+    arquivo << j.numeroMapa << "," << j.n << "," << j.orientacao << ","
+            << j.movimentos << "," << j.rotacoes << endl;
+    arquivo << j.titulo << endl;
+
+    gravaMatriz(arquivo, j.terreno, j.n);
+    gravaMatriz(arquivo, j.ocupante, j.n);
+
+    if (!arquivo)
+    {
+        motivo = "erro ao gravar " + ARQUIVO_JOGO_SALVO;
+        return false;
+    }
+
+    return true;
+}
+
+bool carregaJogoSalvo(Jogo &j, string &motivo)
+{
+    ifstream arquivo(ARQUIVO_JOGO_SALVO);
+
+    if (!arquivo.is_open())
+    {
+        motivo = "nenhum jogo salvo";
+        return false;
+    }
+
+    Jogo lido;
+    string linha;
+
+    if (!leLinha(arquivo, linha) || linha.empty())
+    {
+        motivo = "arquivo vazio";
+        return false;
+    }
+
+    int campos = 1;
+
+    for (size_t i = 0; i < linha.length(); i++)
+    {
+        if (linha[i] == ',')
+        {
+            campos++;
+        }
+    }
+
+    if (campos != 5)
+    {
+        motivo = "cabecalho deve ter 5 campos";
+        return false;
+    }
+
+    int cabecalho[5];
+    stringstream ss(linha);
+    string campo;
+
+    for (int i = 0; i < 5; i++)
+    {
+        getline(ss, campo, ',');
+
+        if (!converteInteiro(campo, cabecalho[i]))
+        {
+            motivo = "cabecalho nao numerico";
+            return false;
+        }
+    }
+
+    lido.numeroMapa = cabecalho[0];
+    lido.n = cabecalho[1];
+    lido.orientacao = cabecalho[2];
+    lido.movimentos = cabecalho[3];
+    lido.rotacoes = cabecalho[4];
+
+    if (lido.numeroMapa < 1)
+    {
+        motivo = "numero do mapa invalido";
+        return false;
+    }
+
+    if (lido.n < TAM_MIN || lido.n > TAM)
+    {
+        motivo = "dimensao fora do intervalo de " + to_string(TAM_MIN) + " a " + to_string(TAM);
+        return false;
+    }
+
+    if (lido.orientacao > 3)
+    {
+        motivo = "orientacao fora do intervalo de 0 a 3";
+        return false;
+    }
+
+    if (!leLinha(arquivo, linha) || linha.empty())
+    {
+        motivo = "titulo ausente";
+        return false;
+    }
+
+    lido.titulo = linha;
+
+    for (int lin = 0; lin < lido.n; lin++)
+    {
+        string motivoDaLinha;
+
+        if (!leLinha(arquivo, linha))
+        {
+            motivo = "terreno com menos linhas do que a dimensao";
+            return false;
+        }
+
+        if (!leLinhaDoMapa(linha, lido.terreno[lin], lido.n, motivoDaLinha))
+        {
+            motivo = "linha " + to_string(lin + 1) + " do terreno: " + motivoDaLinha;
+            return false;
+        }
+
+        for (int col = 0; col < lido.n; col++)
+        {
+            if (lido.terreno[lin][col] == JOGADOR || lido.terreno[lin][col] == BLOCO)
+            {
+                motivo = "terreno com jogador ou bloco";
+                return false;
+            }
+        }
+    }
+
+    int jogadores = 0;
+
+    for (int lin = 0; lin < lido.n; lin++)
+    {
+        string motivoDaLinha;
+
+        if (!leLinha(arquivo, linha))
+        {
+            motivo = "ocupante com menos linhas do que a dimensao";
+            return false;
+        }
+
+        if (!leLinhaDoMapa(linha, lido.ocupante[lin], lido.n, motivoDaLinha))
+        {
+            motivo = "linha " + to_string(lin + 1) + " do ocupante: " + motivoDaLinha;
+            return false;
+        }
+
+        for (int col = 0; col < lido.n; col++)
+        {
+            int valor = lido.ocupante[lin][col];
+
+            if (valor != VAZIO && valor != JOGADOR && valor != BLOCO)
+            {
+                motivo = "ocupante com valor diferente de 0, 2 ou 3";
+                return false;
+            }
+
+            if (valor != VAZIO && lido.terreno[lin][col] == PAREDE)
+            {
+                motivo = "jogador ou bloco dentro de uma parede";
+                return false;
+            }
+
+            if (valor == JOGADOR)
+            {
+                jogadores++;
+            }
+        }
+    }
+
+    if (jogadores != 1)
+    {
+        motivo = "quantidade de jogadores diferente de 1";
+        return false;
+    }
+
+    lido.perdido = false;
+    lido.vencido = false;
+    lido.jogador = localizaJogador(lido);
+
+    j = lido;
+
+    return true;
+}
+
+bool existeJogoSalvo()
+{
+    Jogo j;
+    string motivo;
+
+    return carregaJogoSalvo(j, motivo);
+}
+
+void apagaJogoSalvo()
+{
+    remove(ARQUIVO_JOGO_SALVO.c_str());
+}
+
 bool validaMapa(const Jogo &j, string &motivo)
 {
     int jogadores = 0;
@@ -439,7 +665,6 @@ bool validaMapa(const Jogo &j, string &motivo)
     return true;
 }
 
-// recebe o jogo por valor de proposito: a gravidade e aplicada na copia
 bool mapaEstavel(Jogo j)
 {
     Jogo original = j;
@@ -806,14 +1031,14 @@ void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos,
     }
 }
 
-void exibeMenu(bool jogoEmAndamento)
+void exibeMenu(bool temJogoSalvo)
 {
     limpaTela();
 
     cout << "===== LABIRINTO GIRATORIO =====" << endl;
     cout << "[N] Novo jogo" << endl;
 
-    if (jogoEmAndamento)
+    if (temJogoSalvo)
     {
         cout << "[C] Continuar" << endl;
     }
@@ -840,7 +1065,8 @@ void exibeSobre()
     cout << " W/A/S/D  - move o jogador uma celula por vez" << endl;
     cout << " Q/E      - gira o cenario (anti-horario/horario), so sobre uma alavanca" << endl;
     cout << " R        - reinicia a fase atual" << endl;
-    cout << " ESC      - volta ao menu, preservando o jogo para Continuar" << endl;
+    cout << " ESC      - salva o jogo e volta ao menu; Continuar retoma a partida," << endl;
+    cout << "            mesmo depois de fechar o programa" << endl;
     cout << endl;
 
     cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
@@ -863,7 +1089,6 @@ string leNomeJogador()
             return "Anonimo";
         }
 
-        // o '|' ainda e o separador do placar.txt
         if (nome.empty())
             cout << "O nome nao pode ficar vazio." << endl;
         else if (nome.length() > 15)
@@ -1171,7 +1396,6 @@ void giraCenario(Jogo &j, char tecla)
 
     aplicaGravidade(j);
 
-    // unico ponto, alem de moveJogador, em que a posicao guardada muda
     j.jogador = localizaJogador(j);
 }
 
@@ -1276,7 +1500,6 @@ bool reiniciaFase(Jogo &j, string &motivo)
     return carregaMapa(j.numeroMapa, j, motivo);
 }
 
-// executa uma tecla de cada vez pela propria executaSolucao, desenhando entre elas
 int reproduzSolucao(Jogo &j, string teclas, int &posicao)
 {
     int resultado = SOL_INCOMPLETA;
@@ -1340,10 +1563,25 @@ void jogarPartida(Jogo &j)
 
         char tecla = tolower(leTecla());
 
-        // ESC e R sao comandos da partida, nao teclas do jogo: ficam fora de processaTecla
         if (tecla == 27)
         {
             jogando = false;
+
+            if (j.perdido)
+            {
+                apagaJogoSalvo();
+            }
+            else if (!j.vencido)
+            {
+                string motivo;
+
+                if (!salvaJogo(j, motivo))
+                {
+                    cout << "Nao foi possivel salvar o jogo: " << motivo << endl;
+                    cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
+                    leTecla();
+                }
+            }
         }
         else if (tecla == 'r')
         {
@@ -1356,6 +1594,8 @@ void jogarPartida(Jogo &j)
         }
         else if (processaTecla(j, tecla) == TECLA_VENCEU)
         {
+            apagaJogoSalvo();
+
             limpaTela();
             cout << "===== MAPA " << j.numeroMapa << " CONCLUIDO =====" << endl;
             cout << "Movimentos nesta tentativa: " << j.movimentos << endl;
@@ -1395,6 +1635,21 @@ bool opcaoNovoJogo(Jogo &jogo)
     limpaTela();
     cout << "===== NOVO JOGO =====" << endl;
 
+    if (existeJogoSalvo())
+    {
+        cout << "Existe um jogo salvo. Comecar um novo jogo vai substitui-lo." << endl;
+        cout << "Deseja continuar? (S/N): ";
+
+        char resposta = tolower(leTecla());
+
+        cout << endl;
+
+        if (resposta != 's')
+        {
+            return false;
+        }
+    }
+
     int escolha = escolheMapa(mapas, qtd, false);
 
     if (escolha == ESCOLHA_VOLTAR)
@@ -1407,6 +1662,25 @@ bool opcaoNovoJogo(Jogo &jogo)
     if (!carregaMapa(escolha, jogo, motivo))
     {
         cout << "Nao foi possivel carregar o mapa: " << motivo << endl;
+        cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
+        leTecla();
+
+        return false;
+    }
+
+    apagaJogoSalvo();
+
+    return true;
+}
+
+bool opcaoContinuar(Jogo &jogo)
+{
+    string motivo;
+
+    if (!carregaJogoSalvo(jogo, motivo))
+    {
+        limpaTela();
+        cout << "Nao foi possivel continuar: " << motivo << endl;
         cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
         leTecla();
 
@@ -1473,15 +1747,15 @@ int main()
 {
     Jogo jogo;
 
-    bool jogoEmAndamento = false;
-
     srand((unsigned int)time(nullptr));
 
     bool executando = true;
 
     while (executando)
     {
-        exibeMenu(jogoEmAndamento);
+        bool temJogoSalvo = existeJogoSalvo();
+
+        exibeMenu(temJogoSalvo);
 
         char opcao = tolower(leTecla());
 
@@ -1501,23 +1775,16 @@ int main()
         }
         else if (opcao == 'n')
         {
-            if (opcaoNovoJogo(jogo))
-            {
-                jogoEmAndamento = true;
-                jogar = true;
-            }
+            jogar = opcaoNovoJogo(jogo);
         }
-        else if (opcao == 'c' && jogoEmAndamento)
+        else if (opcao == 'c' && temJogoSalvo)
         {
-            jogar = true;
+            jogar = opcaoContinuar(jogo);
         }
 
         if (jogar)
         {
             jogarPartida(jogo);
-
-            // jogo vencido ou perdido nao pode ser retomado pelo Continuar
-            jogoEmAndamento = !jogo.perdido && !jogo.vencido;
         }
     }
 
