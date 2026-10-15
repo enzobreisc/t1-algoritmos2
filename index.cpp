@@ -97,6 +97,8 @@ void desenhaFimDePartida(const Jogo &j);
 
 string nomeArquivoMapa(int numero, const string &extensao);
 bool leLinha(ifstream &arquivo, string &linha);
+bool pareceLinhaDoCenario(const string &linha);
+int contaCaracteres(const string &texto);
 bool converteInteiro(const string &texto, int &valor);
 bool leLinhaDoMapa(const string &linha, int valores[], int n, string &motivo);
 bool carregaMapa(int numero, Jogo &j, string &motivo);
@@ -184,7 +186,45 @@ bool leLinha(ifstream &arquivo, string &linha)
         linha.erase(linha.length() - 1);
     }
 
+    if (linha.compare(0, 3, "\xEF\xBB\xBF") == 0)
+    {
+        linha.erase(0, 3);
+    }
+
     return true;
+}
+
+bool pareceLinhaDoCenario(const string &linha)
+{
+    if (linha.find(',') == string::npos)
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < linha.length(); i++)
+    {
+        if (!isdigit((unsigned char)linha[i]) && linha[i] != ',')
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+int contaCaracteres(const string &texto)
+{
+    int total = 0;
+
+    for (size_t i = 0; i < texto.length(); i++)
+    {
+        if (((unsigned char)texto[i] & 0xC0) != 0x80)
+        {
+            total++;
+        }
+    }
+
+    return total;
 }
 
 bool converteInteiro(const string &texto, int &valor)
@@ -292,9 +332,9 @@ bool carregaMapa(int numero, Jogo &j, string &motivo)
         return false;
     }
 
-    if (linha.find(',') != string::npos)
+    if (pareceLinhaDoCenario(linha))
     {
-        motivo = "titulo ausente ou com virgula";
+        motivo = "titulo ausente";
         return false;
     }
 
@@ -1041,7 +1081,7 @@ string leNomeJogador()
 
         if (nome.empty())
             cout << "O nome nao pode ficar vazio." << endl;
-        else if (nome.length() > 15)
+        else if (contaCaracteres(nome) > 15)
             cout << "O nome pode ter no maximo 15 caracteres." << endl;
         else if (nome.find(',') != string::npos)
             cout << "O nome nao pode ter virgula." << endl;

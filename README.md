@@ -104,9 +104,12 @@ As solucoes e o minimo de rotacoes dos mapas 4 e 5 foram conferidos com uma
 busca em largura que usa a propria `processaTecla` do jogo.
 
 Formato do `mapaN.csv`: a linha 1 traz a dimensao `n` (de 11 a 21), a linha 2 o
-titulo (sem virgulas) e as `n` linhas seguintes trazem `n` codigos de 0 a 7
-separados por virgula. Um mapa invalido aparece na lista como indisponivel,
-com o motivo.
+titulo e as `n` linhas seguintes trazem `n` codigos de 0 a 7 separados por
+virgula. Se a linha 2 for uma linha de codigos, o titulo e considerado ausente.
+Um mapa invalido aparece na lista como indisponivel, com o motivo.
+
+Os arquivos podem ter fim de linha do Windows (`\r\n`) e a marca BOM que o
+Excel e alguns editores colocam no inicio de arquivos UTF-8.
 
 Formato do `mapaN.sol`: uma unica linha so com as teclas `W A S D Q E`
 (maiusculas ou minusculas), sem espacos.
