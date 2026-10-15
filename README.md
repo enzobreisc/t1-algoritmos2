@@ -171,20 +171,30 @@ Todo o jogo esta em `index.cpp`. O mapa e mantido em duas matrizes separadas:
 Essa separacao evita que o jogador ou um bloco "apague" a alavanca ou a saida
 ao passar por cima.
 
-Cada funcao tem um unico papel:
+Cada funcao tem um unico papel. No `index.cpp`, os prototipos e as definicoes
+aparecem agrupados nesta mesma ordem:
 
-- **Regra** - altera o `Jogo`, nao imprime e nao acessa arquivo (`processaTecla`,
-  `moveJogador`, `giraCenario`, `aplicaGravidade`, `validaMapa`, ...).
-  `processaTecla` e a unica porta de entrada das regras: o jogo pelo teclado e a
-  reproducao do `.sol` chamam a mesma funcao.
-- **Tela** - so imprime e le o teclado, sem alterar o jogo (`desenhaJogo`,
-  `exibeMenu`, `exibeRecordes`, `exibeSobre`, `escolheMapa`, ...).
-- **Arquivo** - le ou grava, nao imprime e devolve `bool` + `string &motivo`
-  quando pode falhar (`carregaMapa`, `carregaSolucao`, `salvaJogo`,
-  `carregaJogoSalvo`, `registraRecorde`, ...).
-- **Orquestracao** - cada opcao do menu (`opcaoNovoJogo`, `opcaoContinuar`,
-  `opcaoVerSolucao`, `opcaoRecordes`) e `jogarPartida` ligam os tres papeis. O
-  `main` so sorteia a semente e chama essas funcoes num `switch`.
+1. **Texto** - conversoes que nao sao nem tela nem arquivo (`converteInteiro`,
+   `contaCaracteres`).
+2. **Tela** - so imprime e le o teclado, sem alterar o jogo (`desenhaJogo`,
+   `desenhaPartida`, `exibeMenu`, `exibeAviso`, `exibeVitoria`, `exibeRecordes`,
+   `escolheMapa`, `leNomeJogador`, ...). Sao as unicas funcoes que usam `cout`.
+3. **Arquivo** - le ou grava, nao imprime, nao aplica regras e devolve `bool` +
+   `string &motivo` quando pode falhar (`carregaMapa`, `carregaSolucao`,
+   `salvaJogo`, `carregaJogoSalvo`, `registraRecorde`, `carregaRecordes`, ...).
+   `carregaMapa` so confere o formato do arquivo; quem confere se o mapa e
+   jogavel e `validaMapa`. A unica funcao do jogo que elas chamam e
+   `localizaJogador`, que so consulta onde o jogador esta, sem alterar nada.
+4. **Regra** - altera o `Jogo`, nao imprime e nao acessa arquivo (`processaTecla`,
+   `moveJogador`, `giraCenario`, `aplicaGravidade`, `validaMapa`,
+   `ordenaRecordes`, ...). `processaTecla` e a unica porta de entrada das regras:
+   o jogo pelo teclado e a reproducao do `.sol` chamam a mesma funcao.
+5. **Orquestracao** - ligam os outros papeis sem imprimir nada diretamente:
+   `carregaMapaValido` (le o arquivo com `carregaMapa` e confere com
+   `validaMapa`), `carregaInfoMapas`, `verificaMapa`, `reproduzSolucao`,
+   `registraVitoria`, `jogarPartida` e uma funcao por opcao do menu
+   (`opcaoNovoJogo`, `opcaoContinuar`, `opcaoVerSolucao`, `opcaoRecordes`). O
+   `main` so sorteia a semente e chama essas funcoes num `switch`.
 
 ## Arquivos
 
@@ -268,10 +278,12 @@ precisa, sem o `Jogo`.
   de W/A/S/D/Q/E e tecla invalida.
 - **Desempate no ranking.** Menos movimentos, depois menos rotacoes, e no
   empate total a ordem de chegada, que o bubble sort preserva.
-- **Validacao ao carregar.** `carregaMapa` so devolve `true` para um mapa que
-  pode ser jogado: alem de conferir o formato, chama `validaMapa` (um jogador,
-  ao menos uma saida e mapa estavel). Assim nenhuma parte do jogo recebe um
-  mapa invalido.
+- **Leitura separada da validacao.** `carregaMapa` (arquivo) so confere o
+  formato: dimensao, titulo, linhas, colunas e valores. `validaMapa` (regra)
+  confere um jogador, ao menos uma saida e o mapa estavel, aplicando a
+  gravidade numa copia. O jogo sempre carrega mapas por `carregaMapaValido`,
+  que chama as duas, entao nenhuma parte do jogo recebe um mapa invalido e a
+  funcao de arquivo nao aplica regra.
 - **Resultados como inteiros.** Os resultados de `processaTecla`
   (`TECLA_...`) e de `executaSolucao` (`SOL_...`) sao constantes inteiras.
 - **Gravidade so depois da rotacao.** As regras da M1 nao mudam na M2, entao a
