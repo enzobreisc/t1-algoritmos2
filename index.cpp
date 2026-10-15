@@ -1001,7 +1001,8 @@ void exibeSobre()
     cout << endl;
 
     cout << "Regras:" << endl;
-    cout << " - Depois de cada rotacao, os blocos (O) caem ate encontrar apoio." << endl;
+    cout << " - Depois de cada movimento ou rotacao, os blocos (O) caem ate" << endl;
+    cout << "   encontrar apoio." << endl;
     cout << " - A porta A fecha em 0 e 180 graus; a porta B, em 90 e 270 graus." << endl;
     cout << " - Porta que fecha sobre um bloco destroi o bloco; sobre o jogador," << endl;
     cout << "   a fase e perdida." << endl;
@@ -1373,6 +1374,8 @@ int processaTecla(Jogo &j, char tecla)
         }
 
         j.movimentos++;
+
+        aplicaGravidade(j);
     }
     else
     {

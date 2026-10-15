@@ -72,8 +72,9 @@ No VS Code tambem existe uma task de build pronta (`Cmd+Shift+B`), definida em
 ## Regras principais
 
 - O cenario so pode ser girado quando o jogador esta em cima de uma alavanca.
-- Apos cada rotacao, os blocos caem ate encontrar apoio (parede, porta fechada,
-  outro bloco ou o jogador).
+- Apos cada movimento ou rotacao, os blocos caem ate encontrar apoio (parede,
+  porta fechada, outro bloco ou o jogador). Assim, um bloco apoiado no jogador
+  cai quando ele sai de baixo.
 - As portas alternam entre aberta e fechada conforme a orientacao do cenario:
   a porta A fecha em 0 e 180 graus, a porta B fecha em 90 e 270 graus.
 - Se uma porta fechar em cima de um bloco, o bloco e destruido. Se fechar em
@@ -90,10 +91,11 @@ Cada mapa tem a sua solucao em `mapaN.sol`.
 - **Mapa 2 - Porta que some** - a porta A muda de estado com a rotacao
 - **Mapa 3 - Duas rotacoes** - exige duas rotacoes e usa as portas A e B
 - **Mapa 4 - Bloco no caminho** (15x15, autoral) - um bloco fecha o corredor
-  depois da primeira porta A. Girando para o lado certo (E), a gravidade leva o
-  bloco embora e bastam 2 rotacoes. Girando para o lado errado (Q), o bloco
-  escorrega para cima da porta A e tranca a passagem: e preciso girar de novo
-  para a porta fechar e esmagar o bloco, num total de 3 rotacoes.
+  depois da primeira porta A. Girando com E, a gravidade leva o bloco para o
+  fundo do corredor, em cima de outra porta A, que o esmaga na rotacao
+  seguinte. Girando com Q, o bloco cai pela porta ate ficar apoiado no
+  jogador, e so desce quando o jogador sai de baixo dele. Nos dois casos a
+  saida exige 2 rotacoes.
 - **Mapa 5 - Tres alavancas** (13x13, autoral) - quatro salas ligadas por
   portas A, B e A, cada uma com uma alavanca. Cada rotacao inverte as portas,
   entao chegar a saida exige no minimo 3 rotacoes.
@@ -212,3 +214,8 @@ Cada funcao tem um unico papel:
   virgula.
 - **Versao do codigo-base** - a tela "Sobre" dizia "Windows", mas o codigo usa
   `stty`. Agora a tela e o README dizem Linux/macOS.
+- **Bloco flutuando** - a gravidade so era aplicada depois de girar. Se o
+  jogador sustentava um bloco e saia de baixo, o bloco ficava parado no ar (no
+  mapa 1, por exemplo, com `wddssqes`). Agora `processaTecla` aplica a
+  gravidade tambem depois de cada movimento. As solucoes de todos os mapas
+  continuam valendo.
