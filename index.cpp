@@ -40,6 +40,7 @@ const int MAX_RECORDES_EXIBIDOS = 5;
 
 #define ESCOLHA_VOLTAR 0
 #define ESCOLHA_TODOS -1
+#define ESCOLHA_ALEATORIO -2
 
 struct Posicao
 {
@@ -88,12 +89,19 @@ void exibeMenu(bool temJogoSalvo);
 void exibeSobre();
 void exibeRecordes(const Recorde v[], int qtd, int mapa);
 void exibeListaMapas(const InfoMapa mapas[], int qtd);
+void exibeVerificacao(const InfoMapa mapas[], const string resultados[], int qtd);
 string leNomeJogador();
 int escolheMapa(const InfoMapa mapas[], int qtd, bool paraSolucao);
 void desenhaCenario(const Jogo &j);
 void desenhaStatus(const Jogo &j);
 void desenhaJogo(const Jogo &j);
 void desenhaFimDePartida(const Jogo &j);
+void desenhaPartida(const Jogo &j, const string &aviso);
+void desenhaReproducao(const Jogo &j, int posicao, int total, char tecla);
+void exibeTitulo(const string &titulo);
+void exibeAviso(const string &mensagem);
+bool confirma(const string &pergunta);
+void exibeVitoria(const Jogo &j);
 
 string nomeArquivoMapa(int numero, const string &extensao);
 bool leLinha(ifstream &arquivo, string &linha);
@@ -102,6 +110,7 @@ int contaCaracteres(const string &texto);
 bool converteInteiro(const string &texto, int &valor);
 bool leLinhaDoMapa(const string &linha, int valores[], int n, string &motivo);
 bool carregaMapa(int numero, Jogo &j, string &motivo);
+bool carregaMapaValido(int numero, Jogo &j, string &motivo);
 int contaMapas();
 int carregaInfoMapas(InfoMapa mapas[], int max);
 bool carregaSolucao(int numero, string &teclas, string &motivo);
@@ -138,10 +147,12 @@ string descreveResultado(int resultado, int posicao, const Jogo &j);
 bool reiniciaFase(Jogo &j, string &motivo);
 int reproduzSolucao(Jogo &j, string teclas, int &posicao);
 string verificaMapa(int numero);
+void registraVitoria(const Jogo &j);
 void jogarPartida(Jogo &j);
 void opcaoNovoJogo();
 void opcaoContinuar();
 void opcaoVerSolucao();
+int perguntaMapa(int qtd);
 void opcaoRecordes();
 
 char leTecla()
@@ -369,7 +380,16 @@ bool carregaMapa(int numero, Jogo &j, string &motivo)
     lido.vencido = false;
     lido.jogador = localizaJogador(lido);
 
-    if (!validaMapa(lido, motivo))
+    j = lido;
+
+    return true;
+}
+
+bool carregaMapaValido(int numero, Jogo &j, string &motivo)
+{
+    Jogo lido;
+
+    if (!carregaMapa(numero, lido, motivo) || !validaMapa(lido, motivo))
     {
         return false;
     }
@@ -415,7 +435,7 @@ int carregaInfoMapas(InfoMapa mapas[], int max)
         Jogo j;
 
         mapas[i].numero = i + 1;
-        mapas[i].valido = carregaMapa(i + 1, j, mapas[i].motivo);
+        mapas[i].valido = carregaMapaValido(i + 1, j, mapas[i].motivo);
         mapas[i].titulo = mapas[i].valido ? j.titulo : nomeArquivoMapa(i + 1, ".csv");
     }
 
@@ -889,6 +909,67 @@ void desenhaFimDePartida(const Jogo &j)
     }
 }
 
+void desenhaPartida(const Jogo &j, const string &aviso)
+{
+    desenhaJogo(j);
+    desenhaFimDePartida(j);
+
+    if (!aviso.empty())
+    {
+        cout << aviso << endl;
+    }
+}
+
+void desenhaReproducao(const Jogo &j, int posicao, int total, char tecla)
+{
+    desenhaJogo(j);
+
+    if (posicao > 0)
+    {
+        cout << "Tecla " << posicao << " de " << total << ": " << tecla << endl;
+    }
+}
+
+void exibeTitulo(const string &titulo)
+{
+    limpaTela();
+
+    cout << "===== " << titulo << " =====" << endl;
+}
+
+void exibeAviso(const string &mensagem)
+{
+    if (!mensagem.empty())
+    {
+        cout << mensagem << endl;
+    }
+
+    cout << "Pressione qualquer tecla para continuar..." << endl;
+
+    leTecla();
+}
+
+bool confirma(const string &pergunta)
+{
+    cout << pergunta << " (S/N): ";
+
+    char resposta = tolower(leTecla());
+
+    cout << endl;
+
+    return resposta == 's';
+}
+
+void exibeVitoria(const Jogo &j)
+{
+    limpaTela();
+
+    cout << "===== MAPA " << j.numeroMapa << " CONCLUIDO =====" << endl;
+    cout << "Movimentos nesta tentativa: " << j.movimentos << endl;
+    cout << "Rotacoes: " << j.rotacoes << endl;
+    cout << endl;
+}
+
 bool registraRecorde(Recorde r, string &motivo)
 {
     ofstream arquivo(ARQUIVO_RECORDES, ios_base::app);
@@ -975,6 +1056,7 @@ void ordenaRecordes(Recorde v[], int qtd)
 
 void exibeRecordes(const Recorde v[], int qtd, int mapa)
 {
+    cout << endl;
     cout << "===== RECORDES - MAPA " << mapa << " =====" << endl;
 
     int exibidos = 0;
@@ -1113,14 +1195,35 @@ void exibeListaMapas(const InfoMapa mapas[], int qtd)
     cout << endl;
 }
 
+void exibeVerificacao(const InfoMapa mapas[], const string resultados[], int qtd)
+{
+    exibeTitulo("VERIFICAR TODOS OS MAPAS");
+
+    for (int i = 0; i < qtd; i++)
+    {
+        cout << mapas[i].numero << ". " << mapas[i].titulo << " - " << resultados[i] << endl;
+    }
+
+    cout << endl;
+}
+
 int escolheMapa(const InfoMapa mapas[], int qtd, bool paraSolucao)
 {
     exibeListaMapas(mapas, qtd);
 
-    if (sorteiaMapaValido(mapas, qtd) == ESCOLHA_VOLTAR)
+    bool temValido = false;
+
+    for (int i = 0; i < qtd; i++)
     {
-        cout << "Nenhum mapa disponivel. Pressione qualquer tecla para voltar ao menu..." << endl;
-        leTecla();
+        if (mapas[i].valido)
+        {
+            temValido = true;
+        }
+    }
+
+    if (!temValido)
+    {
+        exibeAviso("Nenhum mapa disponivel.");
 
         return ESCOLHA_VOLTAR;
     }
@@ -1149,7 +1252,7 @@ int escolheMapa(const InfoMapa mapas[], int qtd, bool paraSolucao)
 
         if (resposta.length() == 1 && tolower(resposta[0]) == 'a' && !paraSolucao)
         {
-            return sorteiaMapaValido(mapas, qtd);
+            return ESCOLHA_ALEATORIO;
         }
 
         if (!converteInteiro(resposta, numero) || numero > qtd)
@@ -1486,27 +1589,27 @@ string descreveResultado(int resultado, int posicao, const Jogo &j)
 
 bool reiniciaFase(Jogo &j, string &motivo)
 {
-    return carregaMapa(j.numeroMapa, j, motivo);
+    return carregaMapaValido(j.numeroMapa, j, motivo);
 }
 
 int reproduzSolucao(Jogo &j, string teclas, int &posicao)
 {
     int resultado = SOL_INCOMPLETA;
+    int total = (int)teclas.length();
 
     posicao = 0;
 
-    desenhaJogo(j);
+    desenhaReproducao(j, 0, total, ' ');
     pausa(PAUSA_MS);
 
-    for (size_t i = 0; i < teclas.length() && resultado == SOL_INCOMPLETA; i++)
+    for (int i = 0; i < total && resultado == SOL_INCOMPLETA; i++)
     {
         int posicaoNaTecla;
 
         resultado = executaSolucao(j, string(1, teclas[i]), posicaoNaTecla);
         posicao = i + 1;
 
-        desenhaJogo(j);
-        cout << "Tecla " << posicao << " de " << teclas.length() << ": " << teclas[i] << endl;
+        desenhaReproducao(j, posicao, total, teclas[i]);
         pausa(PAUSA_MS);
     }
 
@@ -1518,7 +1621,7 @@ string verificaMapa(int numero)
     Jogo j;
     string teclas, motivo;
 
-    if (!carregaMapa(numero, j, motivo))
+    if (!carregaMapaValido(numero, j, motivo))
     {
         return "indisponivel: " + motivo;
     }
@@ -1534,6 +1637,32 @@ string verificaMapa(int numero)
     return descreveResultado(resultado, posicao, j);
 }
 
+void registraVitoria(const Jogo &j)
+{
+    exibeVitoria(j);
+
+    Recorde r;
+    r.nome = leNomeJogador();
+    r.mapa = j.numeroMapa;
+    r.movimentos = j.movimentos;
+    r.rotacoes = j.rotacoes;
+
+    string motivo;
+    string aviso;
+
+    if (!registraRecorde(r, motivo))
+    {
+        aviso = "Nao foi possivel registrar o recorde: " + motivo;
+    }
+
+    Recorde recordes[MAX_RECORDES];
+    int qtd = carregaRecordes(recordes, MAX_RECORDES);
+    ordenaRecordes(recordes, qtd);
+
+    exibeRecordes(recordes, qtd, j.numeroMapa);
+    exibeAviso(aviso);
+}
+
 void jogarPartida(Jogo &j)
 {
     bool jogando = true;
@@ -1541,14 +1670,9 @@ void jogarPartida(Jogo &j)
 
     while (jogando)
     {
-        desenhaJogo(j);
-        desenhaFimDePartida(j);
+        desenhaPartida(j, aviso);
 
-        if (!aviso.empty())
-        {
-            cout << aviso << endl;
-            aviso = "";
-        }
+        aviso = "";
 
         char tecla = tolower(leTecla());
 
@@ -1566,9 +1690,7 @@ void jogarPartida(Jogo &j)
 
                 if (!salvaJogo(j, motivo))
                 {
-                    cout << "Nao foi possivel salvar o jogo: " << motivo << endl;
-                    cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
-                    leTecla();
+                    exibeAviso("Nao foi possivel salvar o jogo: " + motivo);
                 }
             }
         }
@@ -1585,34 +1707,7 @@ void jogarPartida(Jogo &j)
         {
             apagaJogoSalvo();
 
-            limpaTela();
-            cout << "===== MAPA " << j.numeroMapa << " CONCLUIDO =====" << endl;
-            cout << "Movimentos nesta tentativa: " << j.movimentos << endl;
-            cout << "Rotacoes: " << j.rotacoes << endl;
-            cout << endl;
-
-            Recorde r;
-            r.nome = leNomeJogador();
-            r.mapa = j.numeroMapa;
-            r.movimentos = j.movimentos;
-            r.rotacoes = j.rotacoes;
-
-            string motivo;
-
-            if (!registraRecorde(r, motivo))
-            {
-                cout << "Nao foi possivel registrar o recorde: " << motivo << endl;
-            }
-
-            Recorde recordes[MAX_RECORDES];
-            int qtd = carregaRecordes(recordes, MAX_RECORDES);
-            ordenaRecordes(recordes, qtd);
-
-            cout << endl;
-            exibeRecordes(recordes, qtd, j.numeroMapa);
-
-            cout << "Pressione qualquer tecla para continuar..." << endl;
-            leTecla();
+            registraVitoria(j);
         }
     }
 }
@@ -1622,25 +1717,20 @@ void opcaoNovoJogo()
     InfoMapa mapas[MAX_MAPAS];
     int qtd = carregaInfoMapas(mapas, MAX_MAPAS);
 
-    limpaTela();
-    cout << "===== NOVO JOGO =====" << endl;
+    exibeTitulo("NOVO JOGO");
 
-    if (existeJogoSalvo())
+    if (existeJogoSalvo() &&
+        !confirma("Existe um jogo salvo. Comecar um novo jogo vai substitui-lo.\nDeseja continuar?"))
     {
-        cout << "Existe um jogo salvo. Comecar um novo jogo vai substitui-lo." << endl;
-        cout << "Deseja continuar? (S/N): ";
-
-        char resposta = tolower(leTecla());
-
-        cout << endl;
-
-        if (resposta != 's')
-        {
-            return;
-        }
+        return;
     }
 
     int escolha = escolheMapa(mapas, qtd, false);
+
+    if (escolha == ESCOLHA_ALEATORIO)
+    {
+        escolha = sorteiaMapaValido(mapas, qtd);
+    }
 
     if (escolha == ESCOLHA_VOLTAR)
     {
@@ -1650,11 +1740,9 @@ void opcaoNovoJogo()
     Jogo jogo;
     string motivo;
 
-    if (!carregaMapa(escolha, jogo, motivo))
+    if (!carregaMapaValido(escolha, jogo, motivo))
     {
-        cout << "Nao foi possivel carregar o mapa: " << motivo << endl;
-        cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
-        leTecla();
+        exibeAviso("Nao foi possivel carregar o mapa: " + motivo);
 
         return;
     }
@@ -1671,10 +1759,8 @@ void opcaoContinuar()
 
     if (!carregaJogoSalvo(jogo, motivo))
     {
-        limpaTela();
-        cout << "Nao foi possivel continuar: " << motivo << endl;
-        cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
-        leTecla();
+        exibeTitulo("CONTINUAR");
+        exibeAviso("Nao foi possivel continuar: " + motivo);
 
         return;
     }
@@ -1687,8 +1773,7 @@ void opcaoVerSolucao()
     InfoMapa mapas[MAX_MAPAS];
     int qtd = carregaInfoMapas(mapas, MAX_MAPAS);
 
-    limpaTela();
-    cout << "===== VER SOLUCAO =====" << endl;
+    exibeTitulo("VER SOLUCAO");
 
     int escolha = escolheMapa(mapas, qtd, true);
 
@@ -1699,40 +1784,62 @@ void opcaoVerSolucao()
 
     if (escolha == ESCOLHA_TODOS)
     {
-        limpaTela();
-        cout << "===== VERIFICAR TODOS OS MAPAS =====" << endl;
+        string resultados[MAX_MAPAS];
 
         for (int i = 0; i < qtd; i++)
         {
-            cout << mapas[i].numero << ". " << mapas[i].titulo << " - "
-                 << verificaMapa(mapas[i].numero) << endl;
+            resultados[i] = verificaMapa(mapas[i].numero);
         }
+
+        exibeVerificacao(mapas, resultados, qtd);
+        exibeAviso("");
+
+        return;
+    }
+
+    Jogo j;
+    string teclas, motivo;
+
+    if (!carregaMapaValido(escolha, j, motivo))
+    {
+        exibeAviso("Mapa indisponivel: " + motivo);
+    }
+    else if (!carregaSolucao(escolha, teclas, motivo))
+    {
+        exibeAviso("Nao ha solucao para reproduzir: " + motivo);
     }
     else
     {
-        Jogo j;
-        string teclas, motivo;
+        int posicao;
+        int resultado = reproduzSolucao(j, teclas, posicao);
 
-        if (!carregaMapa(escolha, j, motivo))
-        {
-            cout << "Mapa indisponivel: " << motivo << endl;
-        }
-        else if (!carregaSolucao(escolha, teclas, motivo))
-        {
-            cout << "Nao ha solucao para reproduzir: " << motivo << endl;
-        }
-        else
-        {
-            int posicao;
-            int resultado = reproduzSolucao(j, teclas, posicao);
-
-            cout << "Resultado: " << descreveResultado(resultado, posicao, j) << endl;
-        }
+        exibeAviso("Resultado: " + descreveResultado(resultado, posicao, j));
     }
+}
 
-    cout << endl;
-    cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
-    leTecla();
+int perguntaMapa(int qtd)
+{
+    while (true)
+    {
+        cout << "Numero do mapa ou 0 para voltar: ";
+
+        string resposta;
+        int numero;
+
+        if (!getline(cin, resposta))
+        {
+            cin.clear();
+
+            return ESCOLHA_VOLTAR;
+        }
+
+        if (converteInteiro(resposta, numero) && numero <= qtd)
+        {
+            return numero;
+        }
+
+        cout << "Opcao invalida." << endl;
+    }
 }
 
 void opcaoRecordes()
@@ -1740,34 +1847,14 @@ void opcaoRecordes()
     InfoMapa mapas[MAX_MAPAS];
     int qtdMapas = carregaInfoMapas(mapas, MAX_MAPAS);
 
-    limpaTela();
-    cout << "===== RECORDES =====" << endl;
-
+    exibeTitulo("RECORDES");
     exibeListaMapas(mapas, qtdMapas);
 
     int numero = ESCOLHA_VOLTAR;
-    bool respondeu = (qtdMapas == 0);
 
-    while (!respondeu)
+    if (qtdMapas > 0)
     {
-        cout << "Numero do mapa ou 0 para voltar: ";
-
-        string resposta;
-
-        if (!getline(cin, resposta))
-        {
-            cin.clear();
-            respondeu = true;
-        }
-        else if (converteInteiro(resposta, numero) && numero <= qtdMapas)
-        {
-            respondeu = true;
-        }
-        else
-        {
-            cout << "Opcao invalida." << endl;
-            numero = ESCOLHA_VOLTAR;
-        }
+        numero = perguntaMapa(qtdMapas);
     }
 
     if (numero != ESCOLHA_VOLTAR)
@@ -1776,12 +1863,10 @@ void opcaoRecordes()
         int qtd = carregaRecordes(recordes, MAX_RECORDES);
         ordenaRecordes(recordes, qtd);
 
-        cout << endl;
         exibeRecordes(recordes, qtd, numero);
     }
 
-    cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
-    leTecla();
+    exibeAviso("");
 }
 
 int main()
