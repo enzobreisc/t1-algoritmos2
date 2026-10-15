@@ -137,8 +137,8 @@ bool reiniciaFase(Jogo &j, string &motivo);
 int reproduzSolucao(Jogo &j, string teclas, int &posicao);
 string verificaMapa(int numero);
 void jogarPartida(Jogo &j);
-bool opcaoNovoJogo(Jogo &jogo);
-bool opcaoContinuar(Jogo &jogo);
+void opcaoNovoJogo();
+void opcaoContinuar();
 void opcaoVerSolucao();
 void opcaoRecordes();
 
@@ -990,12 +990,32 @@ void exibeSobre()
     cout << "Codigo-base: Linux/macOS" << endl;
     cout << endl;
 
-    cout << "Regras:" << endl;
+    cout << "Objetivo: levar o jogador (@) ate a saida (S)." << endl;
+    cout << endl;
+
+    cout << "Teclas da partida:" << endl;
     cout << " W/A/S/D  - move o jogador uma celula por vez" << endl;
     cout << " Q/E      - gira o cenario (anti-horario/horario), so sobre uma alavanca" << endl;
     cout << " R        - reinicia a fase atual" << endl;
-    cout << " ESC      - salva o jogo e volta ao menu; Continuar retoma a partida," << endl;
-    cout << "            mesmo depois de fechar o programa" << endl;
+    cout << " ESC      - salva a partida e volta ao menu" << endl;
+    cout << endl;
+
+    cout << "Regras:" << endl;
+    cout << " - Depois de cada rotacao, os blocos (O) caem ate encontrar apoio." << endl;
+    cout << " - A porta A fecha em 0 e 180 graus; a porta B, em 90 e 270 graus." << endl;
+    cout << " - Porta que fecha sobre um bloco destroi o bloco; sobre o jogador," << endl;
+    cout << "   a fase e perdida." << endl;
+    cout << endl;
+
+    cout << "Menu:" << endl;
+    cout << " [N] Novo jogo   - escolhe o mapa pelo numero ou sorteia um (A)" << endl;
+    cout << " [C] Continuar   - retoma a partida salva com ESC, mesmo depois de" << endl;
+    cout << "                   fechar o programa" << endl;
+    cout << " [V] Ver solucao - reproduz o mapaN.sol de um mapa; T verifica todos" << endl;
+    cout << " [R] Recordes    - os 5 melhores de um mapa (menos movimentos e, no" << endl;
+    cout << "                   empate, menos rotacoes)" << endl;
+    cout << " [S] Sobre       - esta tela" << endl;
+    cout << " [F] Fim         - encerra o programa" << endl;
     cout << endl;
 
     cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
@@ -1557,7 +1577,7 @@ void jogarPartida(Jogo &j)
     }
 }
 
-bool opcaoNovoJogo(Jogo &jogo)
+void opcaoNovoJogo()
 {
     InfoMapa mapas[MAX_MAPAS];
     int qtd = carregaInfoMapas(mapas, MAX_MAPAS);
@@ -1576,7 +1596,7 @@ bool opcaoNovoJogo(Jogo &jogo)
 
         if (resposta != 's')
         {
-            return false;
+            return;
         }
     }
 
@@ -1584,9 +1604,10 @@ bool opcaoNovoJogo(Jogo &jogo)
 
     if (escolha == ESCOLHA_VOLTAR)
     {
-        return false;
+        return;
     }
 
+    Jogo jogo;
     string motivo;
 
     if (!carregaMapa(escolha, jogo, motivo))
@@ -1595,16 +1616,17 @@ bool opcaoNovoJogo(Jogo &jogo)
         cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
         leTecla();
 
-        return false;
+        return;
     }
 
     apagaJogoSalvo();
 
-    return true;
+    jogarPartida(jogo);
 }
 
-bool opcaoContinuar(Jogo &jogo)
+void opcaoContinuar()
 {
+    Jogo jogo;
     string motivo;
 
     if (!carregaJogoSalvo(jogo, motivo))
@@ -1614,10 +1636,10 @@ bool opcaoContinuar(Jogo &jogo)
         cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
         leTecla();
 
-        return false;
+        return;
     }
 
-    return true;
+    jogarPartida(jogo);
 }
 
 void opcaoVerSolucao()
@@ -1724,8 +1746,6 @@ void opcaoRecordes()
 
 int main()
 {
-    Jogo jogo;
-
     srand((unsigned int)time(nullptr));
 
     bool executando = true;
@@ -1736,38 +1756,34 @@ int main()
 
         exibeMenu(temJogoSalvo);
 
-        char opcao = tolower(leTecla());
+        switch (tolower(leTecla()))
+        {
+        case 'n':
+            opcaoNovoJogo();
+            break;
 
-        bool jogar = false;
+        case 'c':
+            if (temJogoSalvo)
+            {
+                opcaoContinuar();
+            }
+            break;
 
-        if (opcao == 'f')
-        {
-            executando = false;
-        }
-        else if (opcao == 's')
-        {
-            exibeSobre();
-        }
-        else if (opcao == 'v')
-        {
+        case 'v':
             opcaoVerSolucao();
-        }
-        else if (opcao == 'r')
-        {
-            opcaoRecordes();
-        }
-        else if (opcao == 'n')
-        {
-            jogar = opcaoNovoJogo(jogo);
-        }
-        else if (opcao == 'c' && temJogoSalvo)
-        {
-            jogar = opcaoContinuar(jogo);
-        }
+            break;
 
-        if (jogar)
-        {
-            jogarPartida(jogo);
+        case 'r':
+            opcaoRecordes();
+            break;
+
+        case 's':
+            exibeSobre();
+            break;
+
+        case 'f':
+            executando = false;
+            break;
         }
     }
 

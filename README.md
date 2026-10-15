@@ -156,6 +156,33 @@ Todo o jogo esta em `index.cpp`. O mapa e mantido em duas matrizes separadas:
 Essa separacao evita que o jogador ou um bloco "apague" a alavanca ou a saida
 ao passar por cima.
 
+Cada funcao tem um unico papel:
+
+- **Regra** - altera o `Jogo`, nao imprime e nao acessa arquivo (`processaTecla`,
+  `moveJogador`, `giraCenario`, `aplicaGravidade`, `validaMapa`, ...).
+  `processaTecla` e a unica porta de entrada das regras: o jogo pelo teclado e a
+  reproducao do `.sol` chamam a mesma funcao.
+- **Tela** - so imprime e le o teclado, sem alterar o jogo (`desenhaJogo`,
+  `exibeMenu`, `exibeRecordes`, `exibeSobre`, `escolheMapa`, ...).
+- **Arquivo** - le ou grava, nao imprime e devolve `bool` + `string &motivo`
+  quando pode falhar (`carregaMapa`, `carregaSolucao`, `salvaJogo`,
+  `carregaJogoSalvo`, `registraRecorde`, ...).
+- **Orquestracao** - cada opcao do menu (`opcaoNovoJogo`, `opcaoContinuar`,
+  `opcaoVerSolucao`, `opcaoRecordes`) e `jogarPartida` ligam os tres papeis. O
+  `main` so sorteia a semente e chama essas funcoes num `switch`.
+
+## Arquivos
+
+| Arquivo                     | Conteudo                                 |
+| --------------------------- | ---------------------------------------- |
+| `index.cpp`                 | codigo do jogo                           |
+| `mapa1.csv` ... `mapaN.csv` | mapas, na mesma pasta do executavel      |
+| `mapa1.sol` ... `mapaN.sol` | solucao de cada mapa                     |
+| `jogo_salvo.csv`            | partida salva com ESC (criado pelo jogo) |
+| `recordes.csv`              | uma linha por vitoria (criado pelo jogo) |
+
+`jogo_salvo.csv` e `recordes.csv` ficam fora do repositorio (`.gitignore`).
+
 ## Defeitos da M1 corrigidos
 
 - **Solucao do mapa 4 ("Porta que some")** - a sequencia do comentario
