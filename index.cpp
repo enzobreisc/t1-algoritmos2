@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -8,7 +7,6 @@
 #include <sstream>
 #include <string>
 #include <unistd.h>
-#include <vector>
 using namespace std;
 
 const int TAM = 21;
@@ -16,6 +14,9 @@ const int TAM_MIN = 11;
 const int MAX_MAPAS = 100;
 const int PAUSA_MS = 300;
 const string ARQUIVO_JOGO_SALVO = "jogo_salvo.csv";
+const string ARQUIVO_RECORDES = "recordes.csv";
+const int MAX_RECORDES = 200;
+const int MAX_RECORDES_EXIBIDOS = 5;
 
 #define VAZIO 0
 #define PAREDE 1
@@ -85,7 +86,7 @@ void limpaTela();
 void pausa(int milissegundos);
 void exibeMenu(bool temJogoSalvo);
 void exibeSobre();
-void exibePlacar(int numeroDoMapa, const string &nomeJogador);
+void exibeRecordes(const Recorde v[], int qtd, int mapa);
 void exibeListaMapas(const InfoMapa mapas[], int qtd);
 string leNomeJogador();
 int escolheMapa(const InfoMapa mapas[], int qtd, bool paraSolucao);
@@ -107,7 +108,9 @@ bool salvaJogo(const Jogo &j, string &motivo);
 bool carregaJogoSalvo(Jogo &j, string &motivo);
 bool existeJogoSalvo();
 void apagaJogoSalvo();
-void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos, int &posicao);
+bool registraRecorde(Recorde r, string &motivo);
+int carregaRecordes(Recorde v[], int max);
+void ordenaRecordes(Recorde v[], int qtd);
 
 void separaTerrenoEOcupante(const int mapa[][TAM], Jogo &j);
 bool validaMapa(const Jogo &j, string &motivo);
@@ -137,6 +140,7 @@ void jogarPartida(Jogo &j);
 bool opcaoNovoJogo(Jogo &jogo);
 bool opcaoContinuar(Jogo &jogo);
 void opcaoVerSolucao();
+void opcaoRecordes();
 
 char leTecla()
 {
@@ -845,190 +849,114 @@ void desenhaFimDePartida(const Jogo &j)
     }
 }
 
-void carregaTodosOsPlacar(vector<Recorde> &registros)
+bool registraRecorde(Recorde r, string &motivo)
 {
-    ifstream arquivo("placar.txt");
+    ofstream arquivo(ARQUIVO_RECORDES, ios_base::app);
 
     if (!arquivo.is_open())
-        return;
+    {
+        motivo = "nao foi possivel abrir " + ARQUIVO_RECORDES;
+        return false;
+    }
 
+    arquivo << r.nome << "," << r.mapa << "," << r.movimentos << "," << r.rotacoes << endl;
+
+    if (!arquivo)
+    {
+        motivo = "erro ao gravar " + ARQUIVO_RECORDES;
+        return false;
+    }
+
+    return true;
+}
+
+int carregaRecordes(Recorde v[], int max)
+{
+    ifstream arquivo(ARQUIVO_RECORDES);
     string linha;
+    int qtd = 0;
 
-    while (getline(arquivo, linha))
+    while (qtd < max && leLinha(arquivo, linha))
     {
-        if (linha.empty())
-            continue;
+        int virgulas = 0;
 
-        stringstream ss(linha);
-        string mapaTexto, nome, movimentosTexto;
-
-        getline(ss, mapaTexto, '|');
-        getline(ss, nome, '|');
-        getline(ss, movimentosTexto, '|');
-
-        if (mapaTexto.empty() || nome.empty() || movimentosTexto.empty())
-            continue;
-
-        try
+        for (size_t i = 0; i < linha.length(); i++)
         {
-            Recorde registro;
-            registro.mapa = stoi(mapaTexto);
-            registro.nome = nome;
-            registro.movimentos = stoi(movimentosTexto);
-            registro.rotacoes = 0;
-            registros.push_back(registro);
-        }
-        catch (...)
-        {
-        }
-    }
-}
-
-void salvaTodosOsPlacar(const vector<Recorde> &registros)
-{
-    ofstream arquivo("placar.txt", ios::trunc);
-
-    for (const Recorde &registro : registros)
-    {
-        arquivo << registro.mapa << "|"
-                << registro.nome << "|"
-                << registro.movimentos << endl;
-    }
-}
-
-void ordenaPlacar(vector<Recorde> &registros)
-{
-    sort(registros.begin(), registros.end(),
-         [](const Recorde &a, const Recorde &b)
-         {
-             if (a.mapa != b.mapa)
-                 return a.mapa < b.mapa;
-
-             if (a.movimentos != b.movimentos)
-                 return a.movimentos < b.movimentos;
-
-             return a.nome < b.nome;
-         });
-}
-
-void exibePlacar(int numeroDoMapa, const string &nomeJogador)
-{
-    vector<Recorde> registros;
-    carregaTodosOsPlacar(registros);
-    ordenaPlacar(registros);
-
-    cout << endl;
-    cout << "===== TOP 10 - MAPA " << numeroDoMapa << " =====" << endl;
-
-    int posicao = 1;
-    bool encontrouJogador = false;
-
-    for (const Recorde &registro : registros)
-    {
-        if (registro.mapa != numeroDoMapa)
-            continue;
-
-        cout << posicao << ". " << registro.nome
-             << " - " << registro.movimentos << " movimentos";
-
-        if (registro.nome == nomeJogador)
-        {
-            cout << "  <-- SEU MELHOR RESULTADO";
-            encontrouJogador = true;
-        }
-
-        cout << endl;
-        posicao++;
-
-        if (posicao > 10)
-            break;
-    }
-
-    if (!encontrouJogador)
-    {
-        cout << "Seu melhor resultado ainda esta fora do TOP 10." << endl;
-    }
-
-    cout << endl;
-}
-
-void registraPlacar(int numeroDoMapa, const string &nomeJogador, int movimentos, int &posicao)
-{
-    vector<Recorde> registros;
-    carregaTodosOsPlacar(registros);
-
-    int melhorAnterior = -1;
-
-    for (const Recorde &registro : registros)
-    {
-        if (registro.mapa == numeroDoMapa &&
-            registro.nome == nomeJogador)
-        {
-            melhorAnterior = registro.movimentos;
-            break;
-        }
-    }
-
-    int melhorResultado = movimentos;
-
-    if (melhorAnterior != -1 && melhorAnterior < melhorResultado)
-        melhorResultado = melhorAnterior;
-
-    vector<Recorde> novosRegistros;
-
-    for (const Recorde &registro : registros)
-    {
-        if (registro.mapa == numeroDoMapa &&
-            registro.nome == nomeJogador)
-        {
-            continue;
-        }
-
-        novosRegistros.push_back(registro);
-    }
-
-    novosRegistros.push_back({nomeJogador, numeroDoMapa, melhorResultado, 0});
-
-    ordenaPlacar(novosRegistros);
-
-    vector<Recorde> resultadoFinal;
-    int quantidadeDoMapa = 0;
-
-    for (const Recorde &registro : novosRegistros)
-    {
-        if (registro.mapa == numeroDoMapa)
-        {
-            if (quantidadeDoMapa < 10)
+            if (linha[i] == ',')
             {
-                resultadoFinal.push_back(registro);
-                quantidadeDoMapa++;
+                virgulas++;
             }
         }
-        else
+
+        if (virgulas != 3)
         {
-            resultadoFinal.push_back(registro);
-        }
-    }
-
-    ordenaPlacar(resultadoFinal);
-    salvaTodosOsPlacar(resultadoFinal);
-
-    posicao = 11;
-    int contador = 0;
-
-    for (const Recorde &registro : resultadoFinal)
-    {
-        if (registro.mapa != numeroDoMapa)
             continue;
+        }
 
-        contador++;
+        stringstream ss(linha);
+        string mapaTexto, movimentosTexto, rotacoesTexto;
+        Recorde r;
 
-        if (registro.nome == nomeJogador)
+        getline(ss, r.nome, ',');
+        getline(ss, mapaTexto, ',');
+        getline(ss, movimentosTexto, ',');
+        getline(ss, rotacoesTexto, ',');
+
+        if (!r.nome.empty() &&
+            converteInteiro(mapaTexto, r.mapa) &&
+            converteInteiro(movimentosTexto, r.movimentos) &&
+            converteInteiro(rotacoesTexto, r.rotacoes))
         {
-            posicao = contador;
-            break;
+            v[qtd] = r;
+            qtd++;
         }
     }
+
+    return qtd;
+}
+
+void ordenaRecordes(Recorde v[], int qtd)
+{
+    for (int i = 0; i < qtd - 1; i++)
+    {
+        for (int k = 0; k < qtd - 1 - i; k++)
+        {
+            bool proximoEhMelhor =
+                v[k + 1].movimentos < v[k].movimentos ||
+                (v[k + 1].movimentos == v[k].movimentos && v[k + 1].rotacoes < v[k].rotacoes);
+
+            if (proximoEhMelhor)
+            {
+                trocar<Recorde>(v[k], v[k + 1]);
+            }
+        }
+    }
+}
+
+void exibeRecordes(const Recorde v[], int qtd, int mapa)
+{
+    cout << "===== RECORDES - MAPA " << mapa << " =====" << endl;
+
+    int exibidos = 0;
+
+    for (int i = 0; i < qtd && exibidos < MAX_RECORDES_EXIBIDOS; i++)
+    {
+        if (v[i].mapa == mapa)
+        {
+            exibidos++;
+
+            cout << exibidos << ". " << v[i].nome << " - "
+                 << v[i].movimentos << " movimentos, "
+                 << v[i].rotacoes << " rotacoes" << endl;
+        }
+    }
+
+    if (exibidos == 0)
+    {
+        cout << "Ainda nao ha recordes neste mapa. Venca-o para aparecer aqui!" << endl;
+    }
+
+    cout << endl;
 }
 
 void exibeMenu(bool temJogoSalvo)
@@ -1044,6 +972,7 @@ void exibeMenu(bool temJogoSalvo)
     }
 
     cout << "[V] Ver solucao" << endl;
+    cout << "[R] Recordes" << endl;
     cout << "[S] Sobre" << endl;
     cout << "[F] Fim" << endl;
     cout << "> ";
@@ -1093,8 +1022,8 @@ string leNomeJogador()
             cout << "O nome nao pode ficar vazio." << endl;
         else if (nome.length() > 15)
             cout << "O nome pode ter no maximo 15 caracteres." << endl;
-        else if (nome.find(',') != string::npos || nome.find('|') != string::npos)
-            cout << "O nome nao pode ter virgula nem barra vertical." << endl;
+        else if (nome.find(',') != string::npos)
+            cout << "O nome nao pode ter virgula." << endl;
         else
             nomeValido = true;
     }
@@ -1602,24 +1531,25 @@ void jogarPartida(Jogo &j)
             cout << "Rotacoes: " << j.rotacoes << endl;
             cout << endl;
 
-            string nomeJogador = leNomeJogador();
+            Recorde r;
+            r.nome = leNomeJogador();
+            r.mapa = j.numeroMapa;
+            r.movimentos = j.movimentos;
+            r.rotacoes = j.rotacoes;
 
-            int posicao;
-            registraPlacar(j.numeroMapa, nomeJogador, j.movimentos, posicao);
+            string motivo;
 
-            if (posicao <= 10)
+            if (!registraRecorde(r, motivo))
             {
-                cout << endl;
-                cout << "Seu melhor resultado esta no " << posicao
-                     << "o lugar do TOP 10!" << endl;
-            }
-            else
-            {
-                cout << endl;
-                cout << "Seu melhor resultado esta fora do TOP 10." << endl;
+                cout << "Nao foi possivel registrar o recorde: " << motivo << endl;
             }
 
-            exibePlacar(j.numeroMapa, nomeJogador);
+            Recorde recordes[MAX_RECORDES];
+            int qtd = carregaRecordes(recordes, MAX_RECORDES);
+            ordenaRecordes(recordes, qtd);
+
+            cout << endl;
+            exibeRecordes(recordes, qtd, j.numeroMapa);
 
             cout << "Pressione qualquer tecla para continuar..." << endl;
             leTecla();
@@ -1743,6 +1673,55 @@ void opcaoVerSolucao()
     leTecla();
 }
 
+void opcaoRecordes()
+{
+    InfoMapa mapas[MAX_MAPAS];
+    int qtdMapas = carregaInfoMapas(mapas, MAX_MAPAS);
+
+    limpaTela();
+    cout << "===== RECORDES =====" << endl;
+
+    exibeListaMapas(mapas, qtdMapas);
+
+    int numero = ESCOLHA_VOLTAR;
+    bool respondeu = (qtdMapas == 0);
+
+    while (!respondeu)
+    {
+        cout << "Numero do mapa ou 0 para voltar: ";
+
+        string resposta;
+
+        if (!getline(cin, resposta))
+        {
+            cin.clear();
+            respondeu = true;
+        }
+        else if (converteInteiro(resposta, numero) && numero <= qtdMapas)
+        {
+            respondeu = true;
+        }
+        else
+        {
+            cout << "Opcao invalida." << endl;
+            numero = ESCOLHA_VOLTAR;
+        }
+    }
+
+    if (numero != ESCOLHA_VOLTAR)
+    {
+        Recorde recordes[MAX_RECORDES];
+        int qtd = carregaRecordes(recordes, MAX_RECORDES);
+        ordenaRecordes(recordes, qtd);
+
+        cout << endl;
+        exibeRecordes(recordes, qtd, numero);
+    }
+
+    cout << "Pressione qualquer tecla para voltar ao menu..." << endl;
+    leTecla();
+}
+
 int main()
 {
     Jogo jogo;
@@ -1772,6 +1751,10 @@ int main()
         else if (opcao == 'v')
         {
             opcaoVerSolucao();
+        }
+        else if (opcao == 'r')
+        {
+            opcaoRecordes();
         }
         else if (opcao == 'n')
         {

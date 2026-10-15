@@ -51,6 +51,7 @@ No VS Code tambem existe uma task de build pronta (`Cmd+Shift+B`), definida em
 - `[C]` Continuar - aparece apenas quando existe um `jogo_salvo.csv` valido e
   retoma a partida, mesmo depois de fechar o programa
 - `[V]` Ver solucao - reproduz o `mapaN.sol` de um mapa ou verifica todos
+- `[R]` Recordes - pergunta o mapa e mostra os 5 melhores resultados
 - `[S]` Sobre - dados da equipe e regras
 - `[F]` Fim - encerra o programa
 
@@ -125,6 +126,25 @@ Quando o arquivo deixa de existir:
 - **ESC depois de uma derrota** - nada e gravado e o arquivo e apagado, para o
   menu nao oferecer Continuar de um jogo perdido.
 - **Novo jogo confirmado** - a partida nova substitui a salva.
+
+## Recordes (`recordes.csv`)
+
+Ao vencer, o jogo pede o nome do jogador (ate 15 caracteres, sem virgula) e
+acrescenta uma linha ao final de `recordes.csv`, no formato
+`nome,mapa,movimentos,rotacoes` (exemplo: `Ana,1,14,1`). Toda vitoria e
+registrada, e o arquivo e criado na primeira.
+
+A opcao `[R]` Recordes carrega ate 200 registros num vetor simples, ordena e
+mostra os 5 melhores do mapa escolhido. A ordenacao e um bubble sort proprio,
+que troca os registros com o template `trocar`:
+
+1. menos movimentos;
+2. no empate, menos rotacoes;
+3. no empate total, quem venceu primeiro fica na frente (o bubble sort so troca
+   quando o proximo e estritamente melhor, entao a ordem de chegada se mantem).
+
+Linhas mal formadas no arquivo sao ignoradas, e sem `recordes.csv` a tela
+mostra uma mensagem de que ainda nao ha recordes.
 
 ## Organizacao do codigo
 
