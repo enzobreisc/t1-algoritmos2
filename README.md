@@ -1,6 +1,6 @@
 # Labirinto Giratorio
 
-Trabalho 1 da disciplina de Algoritmos e Programacao II (22817).
+Trabalho 2 (M2, evolucao do Labirinto Giratorio da M1) da disciplina de Algoritmos e Programacao II (22817).
 
 Jogo de puzzle em modo texto onde o jogador precisa alcancar a saida do
 labirinto. O diferencial e que o cenario inteiro pode ser rotacionado em 90
