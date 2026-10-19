@@ -50,7 +50,8 @@ executado.
   Se ja existir um jogo salvo, pede confirmacao antes de substitui-lo
 - `[C]` Continuar - aparece apenas quando existe um `jogo_salvo.csv` valido e
   retoma a partida, mesmo depois de fechar o programa
-- `[V]` Ver solucao - reproduz o `mapaN.sol` de um mapa ou verifica todos
+- `[V]` Ver solucao - reproduz o `mapaN.sol` de um mapa (qualquer tecla
+  interrompe a reproducao) ou verifica todos
 - `[R]` Recordes - pergunta o mapa e mostra os 5 melhores resultados
 - `[S]` Sobre - dados da equipe e regras
 - `[F]` Fim - encerra o programa
@@ -149,8 +150,9 @@ acrescenta uma linha ao final de `recordes.csv`, no formato
 `nome,mapa,movimentos,rotacoes` (exemplo: `Ana,1,14,1`). Toda vitoria e
 registrada, e o arquivo e criado na primeira.
 
-A opcao `[R]` Recordes carrega ate 200 registros num vetor simples, ordena e
-mostra os 5 melhores do mapa escolhido. A ordenacao e um bubble sort proprio,
+A opcao `[R]` Recordes carrega num vetor simples ate 200 registros do mapa
+escolhido (o limite vale por mapa, nao para o arquivo todo), ordena e mostra os
+5 melhores. A ordenacao e um bubble sort proprio,
 que troca os registros com o template `trocar`:
 
 1. menos movimentos;
@@ -181,17 +183,19 @@ aparecem agrupados nesta mesma ordem:
    `escolheMapa`, `leNomeJogador`, ...). Sao as unicas funcoes que usam `cout`.
 3. **Arquivo** - le ou grava, nao imprime, nao aplica regras e devolve `bool` +
    `string &motivo` quando pode falhar (`carregaMapa`, `carregaSolucao`,
-   `salvaJogo`, `carregaJogoSalvo`, `registraRecorde`, `carregaRecordes`, ...).
+   `salvaJogo`, `carregaJogoSalvo`, `guardaPartida`, `registraRecorde`, `carregaRecordes`, ...).
    `carregaMapa` so confere o formato do arquivo; quem confere se o mapa e
-   jogavel e `validaMapa`. A unica funcao do jogo que elas chamam e
-   `localizaJogador`, que so consulta onde o jogador esta, sem alterar nada.
+   jogavel e `validaMapa`. Elas nao chamam nenhuma funcao de regra: o estado
+   inicial (orientacao, contadores, posicao do jogador) e montado por
+   `iniciaPartida` e `retomaPartida`, que sao regras.
 4. **Regra** - altera o `Jogo`, nao imprime e nao acessa arquivo (`processaTecla`,
    `moveJogador`, `giraCenario`, `aplicaGravidade`, `validaMapa`,
-   `ordenaRecordes`, ...). `processaTecla` e a unica porta de entrada das regras:
+   `ordenaRecordes`, `iniciaPartida`, `retomaPartida`, `montaRecorde`, ...).
+   `processaTecla` e a unica porta de entrada das regras:
    o jogo pelo teclado e a reproducao do `.sol` chamam a mesma funcao.
 5. **Orquestracao** - ligam os outros papeis sem imprimir nada diretamente:
-   `carregaMapaValido` (le o arquivo com `carregaMapa` e confere com
-   `validaMapa`), `carregaInfoMapas`, `verificaMapa`, `reproduzSolucao`,
+   `carregaMapaValido` (le o arquivo com `carregaMapa`, monta o estado com
+   `iniciaPartida` e confere com `validaMapa`), `carregaInfoMapas`, `verificaMapa`, `reproduzSolucao`,
    `registraVitoria`, `jogarPartida` e uma funcao por opcao do menu
    (`opcaoNovoJogo`, `opcaoContinuar`, `opcaoVerSolucao`, `opcaoRecordes`). O
    `main` so sorteia a semente e chama essas funcoes num `switch`.

@@ -445,7 +445,7 @@ void exibeSobre()
     cout << " [N] Novo jogo   - escolhe o mapa pelo numero ou sorteia um (A)" << endl;
     cout << " [C] Continuar   - retoma a partida salva com ESC, mesmo depois de" << endl;
     cout << "                   fechar o programa" << endl;
-    cout << " [V] Ver solucao - reproduz o mapaN.sol de um mapa; T verifica todos" << endl;
+    cout << " [V] Ver solucao - reproduz o mapaN.sol (qualquer tecla interrompe); T verifica todos" << endl;
     cout << " [R] Recordes    - os 5 melhores de um mapa (menos movimentos e, no" << endl;
     cout << "                   empate, menos rotacoes)" << endl;
     cout << " [S] Sobre       - esta tela" << endl;
