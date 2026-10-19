@@ -6,7 +6,6 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <unistd.h>
 using namespace std;
 
 const int TAM = 21;
@@ -38,6 +37,7 @@ const char FIM_DA_ENTRADA = 0;
 #define SOL_INCOMPLETA 1
 #define SOL_DERROTA 2
 #define SOL_TECLA_INVALIDA 3
+#define SOL_INTERROMPIDA 4
 
 #define ESCOLHA_VOLTAR 0
 #define ESCOLHA_TODOS -1
@@ -88,7 +88,7 @@ int contaCaracteres(const string &texto);
 
 char leTecla();
 void limpaTela();
-void pausa(int milissegundos);
+bool pausaOuInterrompe(int milissegundos);
 void desenhaCenario(const Jogo &j);
 void desenhaStatus(const Jogo &j);
 void desenhaJogo(const Jogo &j);
@@ -203,7 +203,7 @@ char leTecla()
 {
     char ch;
 
-    system("stty -icanon -echo");
+    system("stty -icanon -echo min 1 time 0");
 
     int lido = getchar();
 
@@ -226,11 +226,26 @@ void limpaTela()
     cout << "\033[2J\033[1;1H";
 }
 
-void pausa(int milissegundos)
+bool pausaOuInterrompe(int milissegundos)
 {
     cout.flush();
 
-    usleep(milissegundos * 1000);
+    int decimos = milissegundos / 100;
+
+    if (decimos < 1)
+    {
+        decimos = 1;
+    }
+
+    system(("stty -icanon -echo min 0 time " + to_string(decimos)).c_str());
+
+    int lido = getchar();
+
+    system("stty icanon echo min 1 time 0");
+
+    clearerr(stdin);
+
+    return lido != EOF;
 }
 
 void desenhaCenario(const Jogo &j)
@@ -340,6 +355,8 @@ void desenhaReproducao(const Jogo &j, int posicao, int total, char tecla)
     {
         cout << "Tecla " << posicao << " de " << total << ": " << tecla << endl;
     }
+
+    cout << "Pressione qualquer tecla para interromper." << endl;
 }
 
 void exibeTitulo(const string &titulo)
@@ -638,6 +655,9 @@ string descreveResultado(int resultado, int posicao, const Jogo &j)
 
     case SOL_DERROTA:
         return "derrota na tecla " + to_string(posicao);
+
+    case SOL_INTERROMPIDA:
+        return "reproducao interrompida na tecla " + to_string(posicao);
 
     case SOL_TECLA_INVALIDA:
         return "tecla invalida na posicao " + to_string(posicao);
@@ -1657,9 +1677,10 @@ int reproduzSolucao(Jogo &j, string teclas, int &posicao)
     posicao = 0;
 
     desenhaReproducao(j, 0, total, ' ');
-    pausa(PAUSA_MS);
 
-    for (int i = 0; i < total && resultado == SOL_INCOMPLETA; i++)
+    bool interrompida = pausaOuInterrompe(PAUSA_MS);
+
+    for (int i = 0; i < total && resultado == SOL_INCOMPLETA && !interrompida; i++)
     {
         int posicaoNaTecla;
 
@@ -1667,7 +1688,13 @@ int reproduzSolucao(Jogo &j, string teclas, int &posicao)
         posicao = i + 1;
 
         desenhaReproducao(j, posicao, total, teclas[i]);
-        pausa(PAUSA_MS);
+
+        interrompida = pausaOuInterrompe(PAUSA_MS);
+    }
+
+    if (interrompida && resultado == SOL_INCOMPLETA && posicao < total)
+    {
+        resultado = SOL_INTERROMPIDA;
     }
 
     return resultado;
