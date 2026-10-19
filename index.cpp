@@ -123,7 +123,7 @@ bool carregaJogoSalvo(Jogo &j, string &motivo);
 bool existeJogoSalvo();
 void apagaJogoSalvo();
 bool registraRecorde(Recorde r, string &motivo);
-int carregaRecordes(Recorde v[], int max);
+int carregaRecordes(Recorde v[], int max, int mapa);
 
 bool validaMapa(const Jogo &j, string &motivo);
 bool mapaEstavel(Jogo j);
@@ -506,14 +506,11 @@ void exibeRecordes(const Recorde v[], int qtd, int mapa)
 
     for (int i = 0; i < qtd && exibidos < MAX_RECORDES_EXIBIDOS; i++)
     {
-        if (v[i].mapa == mapa)
-        {
-            exibidos++;
+        exibidos++;
 
-            cout << exibidos << ". " << v[i].nome << " - "
-                 << v[i].movimentos << " movimentos, "
-                 << v[i].rotacoes << " rotacoes" << endl;
-        }
+        cout << exibidos << ". " << v[i].nome << " - "
+             << v[i].movimentos << " movimentos, "
+             << v[i].rotacoes << " rotacoes" << endl;
     }
 
     if (exibidos == 0)
@@ -1134,7 +1131,7 @@ bool registraRecorde(Recorde r, string &motivo)
     return true;
 }
 
-int carregaRecordes(Recorde v[], int max)
+int carregaRecordes(Recorde v[], int max, int mapa)
 {
     ifstream arquivo(ARQUIVO_RECORDES);
     string linha;
@@ -1169,7 +1166,8 @@ int carregaRecordes(Recorde v[], int max)
         if (!r.nome.empty() &&
             converteInteiro(mapaTexto, r.mapa) &&
             converteInteiro(movimentosTexto, r.movimentos) &&
-            converteInteiro(rotacoesTexto, r.rotacoes))
+            converteInteiro(rotacoesTexto, r.rotacoes) &&
+            r.mapa == mapa)
         {
             v[qtd] = r;
             qtd++;
@@ -1719,7 +1717,7 @@ void registraVitoria(const Jogo &j)
     }
 
     Recorde recordes[MAX_RECORDES];
-    int qtd = carregaRecordes(recordes, MAX_RECORDES);
+    int qtd = carregaRecordes(recordes, MAX_RECORDES, j.numeroMapa);
     ordenaRecordes(recordes, qtd);
 
     exibeRecordes(recordes, qtd, j.numeroMapa);
@@ -1898,7 +1896,7 @@ void opcaoRecordes()
     if (numero != ESCOLHA_VOLTAR)
     {
         Recorde recordes[MAX_RECORDES];
-        int qtd = carregaRecordes(recordes, MAX_RECORDES);
+        int qtd = carregaRecordes(recordes, MAX_RECORDES, numero);
         ordenaRecordes(recordes, qtd);
 
         exibeRecordes(recordes, qtd, numero);
