@@ -121,10 +121,13 @@ void gravaMatriz(ofstream &arquivo, const int matriz[][TAM], int n);
 bool salvaJogo(const Jogo &j, string &motivo);
 bool carregaJogoSalvo(Jogo &j, string &motivo);
 bool existeJogoSalvo();
+bool guardaPartida(const Jogo &j, string &motivo);
 void apagaJogoSalvo();
 bool registraRecorde(Recorde r, string &motivo);
 int carregaRecordes(Recorde v[], int max, int mapa);
 
+void iniciaPartida(Jogo &j);
+void retomaPartida(Jogo &j);
 bool validaMapa(const Jogo &j, string &motivo);
 bool mapaEstavel(Jogo j);
 int sorteiaMapaValido(const InfoMapa mapas[], int qtd);
@@ -144,6 +147,7 @@ void giraCenario(Jogo &j, char tecla);
 int processaTecla(Jogo &j, char tecla);
 int executaSolucao(Jogo &j, string teclas, int &posicao);
 void ordenaRecordes(Recorde v[], int qtd);
+Recorde montaRecorde(const Jogo &j, const string &nome);
 
 bool carregaMapaValido(int numero, Jogo &j, string &motivo);
 int carregaInfoMapas(InfoMapa mapas[], int max);
@@ -837,12 +841,6 @@ bool carregaMapa(int numero, Jogo &j, string &motivo)
     separaTerrenoEOcupante(mapa, lido);
 
     lido.numeroMapa = numero;
-    lido.orientacao = 0;
-    lido.movimentos = 0;
-    lido.rotacoes = 0;
-    lido.perdido = false;
-    lido.vencido = false;
-    lido.jogador = localizaJogador(lido);
 
     j = lido;
 
@@ -1088,10 +1086,6 @@ bool carregaJogoSalvo(Jogo &j, string &motivo)
         return false;
     }
 
-    lido.perdido = false;
-    lido.vencido = false;
-    lido.jogador = localizaJogador(lido);
-
     j = lido;
 
     return true;
@@ -1108,6 +1102,18 @@ bool existeJogoSalvo()
 void apagaJogoSalvo()
 {
     remove(ARQUIVO_JOGO_SALVO.c_str());
+}
+
+bool guardaPartida(const Jogo &j, string &motivo)
+{
+    if (j.perdido || j.vencido)
+    {
+        apagaJogoSalvo();
+
+        return true;
+    }
+
+    return salvaJogo(j, motivo);
 }
 
 bool registraRecorde(Recorde r, string &motivo)
@@ -1175,6 +1181,22 @@ int carregaRecordes(Recorde v[], int max, int mapa)
     }
 
     return qtd;
+}
+
+void iniciaPartida(Jogo &j)
+{
+    j.orientacao = 0;
+    j.movimentos = 0;
+    j.rotacoes = 0;
+
+    retomaPartida(j);
+}
+
+void retomaPartida(Jogo &j)
+{
+    j.perdido = false;
+    j.vencido = false;
+    j.jogador = localizaJogador(j);
 }
 
 bool validaMapa(const Jogo &j, string &motivo)
@@ -1606,11 +1628,30 @@ void ordenaRecordes(Recorde v[], int qtd)
     }
 }
 
+Recorde montaRecorde(const Jogo &j, const string &nome)
+{
+    Recorde r;
+
+    r.nome = nome;
+    r.mapa = j.numeroMapa;
+    r.movimentos = j.movimentos;
+    r.rotacoes = j.rotacoes;
+
+    return r;
+}
+
 bool carregaMapaValido(int numero, Jogo &j, string &motivo)
 {
     Jogo lido;
 
-    if (!carregaMapa(numero, lido, motivo) || !validaMapa(lido, motivo))
+    if (!carregaMapa(numero, lido, motivo))
+    {
+        return false;
+    }
+
+    iniciaPartida(lido);
+
+    if (!validaMapa(lido, motivo))
     {
         return false;
     }
@@ -1702,11 +1743,7 @@ void registraVitoria(const Jogo &j)
 {
     exibeVitoria(j);
 
-    Recorde r;
-    r.nome = leNomeJogador();
-    r.mapa = j.numeroMapa;
-    r.movimentos = j.movimentos;
-    r.rotacoes = j.rotacoes;
+    Recorde r = montaRecorde(j, leNomeJogador());
 
     string motivo;
     string aviso;
@@ -1741,18 +1778,11 @@ void jogarPartida(Jogo &j)
         {
             jogando = false;
 
-            if (j.perdido)
-            {
-                apagaJogoSalvo();
-            }
-            else if (!j.vencido)
-            {
-                string motivo;
+            string motivo;
 
-                if (!salvaJogo(j, motivo))
-                {
-                    exibeAviso("Nao foi possivel salvar o jogo: " + motivo);
-                }
+            if (!guardaPartida(j, motivo))
+            {
+                exibeAviso("Nao foi possivel salvar o jogo: " + motivo);
             }
         }
         else if (tecla == 'r')
@@ -1825,6 +1855,8 @@ void opcaoContinuar()
 
         return;
     }
+
+    retomaPartida(jogo);
 
     jogarPartida(jogo);
 }
