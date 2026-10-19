@@ -17,6 +17,9 @@ const string ARQUIVO_RECORDES = "recordes.csv";
 const int MAX_RECORDES = 200;
 const int MAX_RECORDES_EXIBIDOS = 5;
 const char FIM_DA_ENTRADA = 0;
+const int PROFUNDIDADE_DICA = 100;
+const int TAM_TABELA_DICA = 65536;
+const string TECLAS_DICA = "wasdqe";
 
 #define VAZIO 0
 #define PAREDE 1
@@ -59,12 +62,21 @@ struct Jogo
     int numeroMapa;
     string titulo;
     bool perdido, vencido;
+    string teclas;
 };
 
 struct Recorde
 {
     string nome;
     int mapa, movimentos, rotacoes;
+};
+
+struct TabelaEstados
+{
+    unsigned long long chave[TAM_TABELA_DICA];
+    int restante[TAM_TABELA_DICA];
+    int usados;
+    bool cheia;
 };
 
 struct InfoMapa
@@ -85,16 +97,19 @@ void trocar(T &a, T &b)
 
 bool converteInteiro(const string &texto, int &valor);
 int contaCaracteres(const string &texto);
+bool soTemTeclasDoJogo(const string &texto);
 
 char leTecla();
 void limpaTela();
 bool pausaOuInterrompe(int milissegundos);
-void desenhaCenario(const Jogo &j);
+char simboloDaCelula(const Jogo &j, int lin, int col);
+void desenhaCenario(const Jogo &j, Posicao cursor = {-1, -1});
 void desenhaStatus(const Jogo &j);
 void desenhaJogo(const Jogo &j);
 void desenhaFimDePartida(const Jogo &j);
 void desenhaPartida(const Jogo &j, const string &aviso);
 void desenhaReproducao(const Jogo &j, int posicao, int total, char tecla);
+void desenhaEditor(const Jogo &j, Posicao cursor, const string &aviso);
 void exibeTitulo(const string &titulo);
 void exibeAviso(const string &mensagem);
 bool confirma(const string &pergunta);
@@ -107,6 +122,8 @@ void exibeRecordes(const Recorde v[], int qtd, int mapa);
 int escolheMapa(const InfoMapa mapas[], int qtd, bool paraSolucao);
 int perguntaMapa(int qtd);
 string leNomeJogador();
+int perguntaDimensao();
+string leTituloMapa();
 string descreveResultado(int resultado, int posicao, const Jogo &j);
 
 string nomeArquivoMapa(int numero, const string &extensao);
@@ -114,10 +131,15 @@ bool leLinha(ifstream &arquivo, string &linha);
 bool pareceLinhaDoCenario(const string &linha);
 bool leLinhaDoMapa(const string &linha, int valores[], int n, string &motivo);
 void separaTerrenoEOcupante(const int mapa[][TAM], Jogo &j);
+void juntaTerrenoEOcupante(const Jogo &j, int mapa[][TAM]);
 bool carregaMapa(int numero, Jogo &j, string &motivo);
 int contaMapas();
-bool carregaSolucao(int numero, string &teclas, string &motivo);
+string nomeArquivoSolucao(int numero, bool gravada);
+bool existeSolucaoGravada(int numero);
+bool carregaSolucao(int numero, bool gravada, string &teclas, string &motivo);
+bool gravaSolucao(int numero, const string &teclas, string &motivo);
 void gravaMatriz(ofstream &arquivo, const int matriz[][TAM], int n);
+bool gravaMapa(int numero, const Jogo &j, string &motivo);
 bool salvaJogo(const Jogo &j, string &motivo);
 bool carregaJogoSalvo(Jogo &j, string &motivo);
 bool existeJogoSalvo();
@@ -128,12 +150,16 @@ int carregaRecordes(Recorde v[], int max, int mapa);
 
 void iniciaPartida(Jogo &j);
 void retomaPartida(Jogo &j);
+void iniciaEditor(Jogo &j, int n);
+void colocaCodigo(Jogo &j, Posicao p, int codigo);
+Posicao moveCursor(const Jogo &j, Posicao p, char tecla);
 bool validaMapa(const Jogo &j, string &motivo);
 bool mapaEstavel(Jogo j);
 int sorteiaMapaValido(const InfoMapa mapas[], int qtd);
 Posicao localizaJogador(const Jogo &j);
 bool portaEstaFechada(int celula, int orientacao);
 bool celulaEhAtravessavel(const Jogo &j, int lin, int col);
+bool teclasGravaveis(const Jogo &j);
 bool moveJogador(Jogo &j, char tecla);
 bool jogadorVenceu(const Jogo &j);
 bool estaSobreAlavanca(const Jogo &j);
@@ -146,11 +172,16 @@ void resolveEsmagamento(Jogo &j);
 void giraCenario(Jogo &j, char tecla);
 int processaTecla(Jogo &j, char tecla);
 int executaSolucao(Jogo &j, string teclas, int &posicao);
+unsigned long long chaveDoEstado(const Jogo &j);
+bool visitaEstado(TabelaEstados &t, const Jogo &j, int restante);
+bool buscaDica(Jogo j, int restante, TabelaEstados &t, char &tecla);
+char calculaDica(const Jogo &j);
 void ordenaRecordes(Recorde v[], int qtd);
 Recorde montaRecorde(const Jogo &j, const string &nome);
 
 bool carregaMapaValido(int numero, Jogo &j, string &motivo);
 int carregaInfoMapas(InfoMapa mapas[], int max);
+bool gravaMapaEditado(Jogo j, int &numero, string &motivo);
 bool reiniciaFase(Jogo &j, string &motivo);
 string verificaMapa(int numero);
 int reproduzSolucao(Jogo &j, string teclas, int &posicao);
@@ -160,6 +191,7 @@ void opcaoNovoJogo();
 void opcaoContinuar();
 void opcaoVerSolucao();
 void opcaoRecordes();
+void opcaoEditor();
 
 bool converteInteiro(const string &texto, int &valor)
 {
@@ -194,6 +226,19 @@ int contaCaracteres(const string &texto)
     }
 
     return total;
+}
+
+bool soTemTeclasDoJogo(const string &texto)
+{
+    for (size_t i = 0; i < texto.length(); i++)
+    {
+        if (string("wasdqeWASDQE").find(texto[i]) == string::npos)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 char leTecla()
@@ -245,57 +290,57 @@ bool pausaOuInterrompe(int milissegundos)
     return lido != EOF;
 }
 
-void desenhaCenario(const Jogo &j)
+char simboloDaCelula(const Jogo &j, int lin, int col)
+{
+    if (j.ocupante[lin][col] == JOGADOR)
+    {
+        return '@';
+    }
+
+    if (j.ocupante[lin][col] == BLOCO)
+    {
+        return 'O';
+    }
+
+    switch (j.terreno[lin][col])
+    {
+    case VAZIO:
+        return ' ';
+
+    case PAREDE:
+        return '#';
+
+    case ALAVANCA:
+        return 'A';
+
+    case SAIDA:
+        return 'S';
+
+    case PORTA_A:
+        return portaEstaFechada(j.terreno[lin][col], j.orientacao) ? '=' : ':';
+
+    case PORTA_B:
+        return portaEstaFechada(j.terreno[lin][col], j.orientacao) ? '|' : ';';
+
+    default:
+        return '?';
+    }
+}
+
+void desenhaCenario(const Jogo &j, Posicao cursor)
 {
     for (int lin = 0; lin < j.n; lin++)
     {
         for (int col = 0; col < j.n; col++)
         {
-            char simbolo;
-
-            if (j.ocupante[lin][col] == JOGADOR)
+            if (lin == cursor.lin && col == cursor.col)
             {
-                simbolo = '@';
-            }
-            else if (j.ocupante[lin][col] == BLOCO)
-            {
-                simbolo = 'O';
+                cout << "\033[7m" << simboloDaCelula(j, lin, col) << "\033[0m";
             }
             else
             {
-                switch (j.terreno[lin][col])
-                {
-                case VAZIO:
-                    simbolo = ' ';
-                    break;
-
-                case PAREDE:
-                    simbolo = '#';
-                    break;
-
-                case ALAVANCA:
-                    simbolo = 'A';
-                    break;
-
-                case SAIDA:
-                    simbolo = 'S';
-                    break;
-
-                case PORTA_A:
-                    simbolo = portaEstaFechada(j.terreno[lin][col], j.orientacao) ? '=' : ':';
-                    break;
-
-                case PORTA_B:
-                    simbolo = portaEstaFechada(j.terreno[lin][col], j.orientacao) ? '|' : ';';
-                    break;
-
-                default:
-                    simbolo = '?';
-                    break;
-                }
+                cout << simboloDaCelula(j, lin, col);
             }
-
-            cout << simbolo;
         }
 
         cout << endl;
@@ -356,6 +401,23 @@ void desenhaReproducao(const Jogo &j, int posicao, int total, char tecla)
     cout << "Pressione qualquer tecla para interromper." << endl;
 }
 
+void desenhaEditor(const Jogo &j, Posicao cursor, const string &aviso)
+{
+    limpaTela();
+
+    cout << "EDITOR DE MAPAS - " << j.n << "x" << j.n << endl;
+
+    desenhaCenario(j, cursor);
+
+    cout << "W/A/S/D move o cursor | 0 vazio 1 parede 2 jogador 3 bloco" << endl;
+    cout << "4 alavanca 5 saida 6 porta A 7 porta B | G grava | ESC sai" << endl;
+
+    if (!aviso.empty())
+    {
+        cout << aviso << endl;
+    }
+}
+
 void exibeTitulo(const string &titulo)
 {
     limpaTela();
@@ -400,6 +462,7 @@ void exibeMenu(bool temJogoSalvo)
 
     cout << "[V] Ver solucao" << endl;
     cout << "[R] Recordes" << endl;
+    cout << "[M] Editor de mapas" << endl;
     cout << "[S] Sobre" << endl;
     cout << "[F] Fim" << endl;
     cout << "> ";
@@ -423,6 +486,7 @@ void exibeSobre()
     cout << "Teclas da partida:" << endl;
     cout << " W/A/S/D  - move o jogador uma celula por vez" << endl;
     cout << " Q/E      - gira o cenario (anti-horario/horario), so sobre uma alavanca" << endl;
+    cout << " H        - mostra a proxima tecla de uma solucao a partir daqui" << endl;
     cout << " R        - reinicia a fase atual" << endl;
     cout << " ESC      - salva a partida e volta ao menu" << endl;
     cout << endl;
@@ -438,9 +502,11 @@ void exibeSobre()
     cout << " [N] Novo jogo   - escolhe o mapa pelo numero ou sorteia um (A)" << endl;
     cout << " [C] Continuar   - retoma a partida salva com ESC, mesmo depois de" << endl;
     cout << "                   fechar o programa" << endl;
-    cout << " [V] Ver solucao - reproduz o mapaN.sol (qualquer tecla interrompe); T verifica todos" << endl;
+    cout << " [V] Ver solucao - reproduz o mapaN.sol ou a partida gravada ao vencer (qualquer" << endl;
+    cout << "                   tecla interrompe); T verifica todos" << endl;
     cout << " [R] Recordes    - os 5 melhores de um mapa (menos movimentos e, no" << endl;
     cout << "                   empate, menos rotacoes)" << endl;
+    cout << " [M] Editor      - desenha um mapa e grava no proximo mapaN.csv, se for valido" << endl;
     cout << " [S] Sobre       - esta tela" << endl;
     cout << " [F] Fim         - encerra o programa" << endl;
     cout << endl;
@@ -638,6 +704,55 @@ string leNomeJogador()
     return nome;
 }
 
+int perguntaDimensao()
+{
+    while (true)
+    {
+        cout << "Dimensao do mapa (" << TAM_MIN << " a " << TAM << ") ou 0 para voltar: ";
+
+        string resposta;
+        int n;
+
+        if (!getline(cin, resposta))
+        {
+            cin.clear();
+
+            return ESCOLHA_VOLTAR;
+        }
+
+        if (converteInteiro(resposta, n) && (n == 0 || (n >= TAM_MIN && n <= TAM)))
+        {
+            return n;
+        }
+
+        cout << "Dimensao invalida." << endl;
+    }
+}
+
+string leTituloMapa()
+{
+    string titulo;
+
+    while (true)
+    {
+        cout << "Titulo do mapa (sem virgula, vazio cancela): ";
+
+        if (!getline(cin, titulo))
+        {
+            cin.clear();
+
+            return "";
+        }
+
+        if (titulo.find(',') == string::npos)
+        {
+            return titulo;
+        }
+
+        cout << "O titulo nao pode ter virgula." << endl;
+    }
+}
+
 string descreveResultado(int resultado, int posicao, const Jogo &j)
 {
     switch (resultado)
@@ -767,6 +882,17 @@ void separaTerrenoEOcupante(const int mapa[][TAM], Jogo &j)
     }
 }
 
+void juntaTerrenoEOcupante(const Jogo &j, int mapa[][TAM])
+{
+    for (int lin = 0; lin < j.n; lin++)
+    {
+        for (int col = 0; col < j.n; col++)
+        {
+            mapa[lin][col] = j.ocupante[lin][col] != VAZIO ? j.ocupante[lin][col] : j.terreno[lin][col];
+        }
+    }
+}
+
 bool carregaMapa(int numero, Jogo &j, string &motivo)
 {
     ifstream arquivo(nomeArquivoMapa(numero, ".csv"));
@@ -862,19 +988,52 @@ int contaMapas()
     return total;
 }
 
-bool carregaSolucao(int numero, string &teclas, string &motivo)
+string nomeArquivoSolucao(int numero, bool gravada)
 {
-    ifstream arquivo(nomeArquivoMapa(numero, ".sol"));
+    return (gravada ? "partida" : "mapa") + to_string(numero) + ".sol";
+}
+
+bool existeSolucaoGravada(int numero)
+{
+    ifstream arquivo(nomeArquivoSolucao(numero, true));
+
+    return arquivo.is_open();
+}
+
+bool carregaSolucao(int numero, bool gravada, string &teclas, string &motivo)
+{
+    ifstream arquivo(nomeArquivoSolucao(numero, gravada));
 
     if (!arquivo.is_open())
     {
-        motivo = "arquivo " + nomeArquivoMapa(numero, ".sol") + " inexistente";
+        motivo = "arquivo " + nomeArquivoSolucao(numero, gravada) + " inexistente";
         return false;
     }
 
     if (!leLinha(arquivo, teclas))
     {
         teclas = "";
+    }
+
+    return true;
+}
+
+bool gravaSolucao(int numero, const string &teclas, string &motivo)
+{
+    ofstream arquivo(nomeArquivoSolucao(numero, true), ios::trunc);
+
+    if (!arquivo.is_open())
+    {
+        motivo = "nao foi possivel criar " + nomeArquivoSolucao(numero, true);
+        return false;
+    }
+
+    arquivo << teclas << endl;
+
+    if (!arquivo)
+    {
+        motivo = "erro ao gravar " + nomeArquivoSolucao(numero, true);
+        return false;
     }
 
     return true;
@@ -898,6 +1057,42 @@ void gravaMatriz(ofstream &arquivo, const int matriz[][TAM], int n)
     }
 }
 
+bool gravaMapa(int numero, const Jogo &j, string &motivo)
+{
+    ifstream existente(nomeArquivoMapa(numero, ".csv"));
+
+    if (existente.is_open())
+    {
+        motivo = nomeArquivoMapa(numero, ".csv") + " ja existe";
+        return false;
+    }
+
+    ofstream arquivo(nomeArquivoMapa(numero, ".csv"));
+
+    if (!arquivo.is_open())
+    {
+        motivo = "nao foi possivel criar " + nomeArquivoMapa(numero, ".csv");
+        return false;
+    }
+
+    int mapa[TAM][TAM];
+
+    juntaTerrenoEOcupante(j, mapa);
+
+    arquivo << j.n << endl;
+    arquivo << j.titulo << endl;
+
+    gravaMatriz(arquivo, mapa, j.n);
+
+    if (!arquivo)
+    {
+        motivo = "erro ao gravar " + nomeArquivoMapa(numero, ".csv");
+        return false;
+    }
+
+    return true;
+}
+
 bool salvaJogo(const Jogo &j, string &motivo)
 {
     ofstream arquivo(ARQUIVO_JOGO_SALVO, ios::trunc);
@@ -914,6 +1109,7 @@ bool salvaJogo(const Jogo &j, string &motivo)
 
     gravaMatriz(arquivo, j.terreno, j.n);
     gravaMatriz(arquivo, j.ocupante, j.n);
+    arquivo << j.teclas << endl;
 
     if (!arquivo)
     {
@@ -1079,6 +1275,18 @@ bool carregaJogoSalvo(Jogo &j, string &motivo)
         return false;
     }
 
+    string teclas;
+
+    leLinha(arquivo, teclas);
+
+    if (!soTemTeclasDoJogo(teclas))
+    {
+        motivo = "teclas gravadas com caractere invalido";
+        return false;
+    }
+
+    lido.teclas = teclas;
+
     j = lido;
 
     return true;
@@ -1181,6 +1389,7 @@ void iniciaPartida(Jogo &j)
     j.orientacao = 0;
     j.movimentos = 0;
     j.rotacoes = 0;
+    j.teclas = "";
 
     retomaPartida(j);
 }
@@ -1190,6 +1399,68 @@ void retomaPartida(Jogo &j)
     j.perdido = false;
     j.vencido = false;
     j.jogador = localizaJogador(j);
+}
+
+void iniciaEditor(Jogo &j, int n)
+{
+    j.n = n;
+    j.titulo = "";
+    j.numeroMapa = 0;
+
+    for (int lin = 0; lin < n; lin++)
+    {
+        for (int col = 0; col < n; col++)
+        {
+            bool borda = lin == 0 || col == 0 || lin == n - 1 || col == n - 1;
+
+            j.terreno[lin][col] = borda ? PAREDE : VAZIO;
+            j.ocupante[lin][col] = VAZIO;
+        }
+    }
+
+    iniciaPartida(j);
+}
+
+void colocaCodigo(Jogo &j, Posicao p, int codigo)
+{
+    if (codigo == JOGADOR)
+    {
+        for (int lin = 0; lin < j.n; lin++)
+        {
+            for (int col = 0; col < j.n; col++)
+            {
+                if (j.ocupante[lin][col] == JOGADOR)
+                {
+                    j.ocupante[lin][col] = VAZIO;
+                }
+            }
+        }
+    }
+
+    if (codigo == JOGADOR || codigo == BLOCO)
+    {
+        j.terreno[p.lin][p.col] = VAZIO;
+        j.ocupante[p.lin][p.col] = codigo;
+    }
+    else
+    {
+        j.terreno[p.lin][p.col] = codigo;
+        j.ocupante[p.lin][p.col] = VAZIO;
+    }
+}
+
+Posicao moveCursor(const Jogo &j, Posicao p, char tecla)
+{
+    if (tecla == 'w' && p.lin > 0)
+        p.lin--;
+    else if (tecla == 's' && p.lin < j.n - 1)
+        p.lin++;
+    else if (tecla == 'a' && p.col > 0)
+        p.col--;
+    else if (tecla == 'd' && p.col < j.n - 1)
+        p.col++;
+
+    return p;
 }
 
 bool validaMapa(const Jogo &j, string &motivo)
@@ -1351,6 +1622,11 @@ bool celulaEhAtravessavel(const Jogo &j, int lin, int col)
     }
 
     return valorTerreno == VAZIO || valorTerreno == ALAVANCA || valorTerreno == SAIDA;
+}
+
+bool teclasGravaveis(const Jogo &j)
+{
+    return (int)j.teclas.length() == j.movimentos + j.rotacoes;
 }
 
 bool moveJogador(Jogo &j, char tecla)
@@ -1552,6 +1828,7 @@ int processaTecla(Jogo &j, char tecla)
         }
 
         j.movimentos++;
+        j.teclas += tecla;
     }
     else
     {
@@ -1563,6 +1840,7 @@ int processaTecla(Jogo &j, char tecla)
         giraCenario(j, tecla);
 
         j.rotacoes++;
+        j.teclas += tecla;
     }
 
     if (j.perdido)
@@ -1601,6 +1879,112 @@ int executaSolucao(Jogo &j, string teclas, int &posicao)
     }
 
     return SOL_INCOMPLETA;
+}
+
+unsigned long long chaveDoEstado(const Jogo &j)
+{
+    unsigned long long chave = 1469598103934665603ULL;
+
+    chave = (chave ^ (unsigned long long)j.orientacao) * 1099511628211ULL;
+
+    for (int lin = 0; lin < j.n; lin++)
+    {
+        for (int col = 0; col < j.n; col++)
+        {
+            chave = (chave ^ (unsigned long long)(j.ocupante[lin][col] + 1)) * 1099511628211ULL;
+        }
+    }
+
+    return chave;
+}
+
+bool visitaEstado(TabelaEstados &t, const Jogo &j, int restante)
+{
+    unsigned long long chave = chaveDoEstado(j);
+    int pos = (int)(chave % TAM_TABELA_DICA);
+
+    while (t.restante[pos] >= 0 && t.chave[pos] != chave)
+    {
+        pos = (pos + 1) % TAM_TABELA_DICA;
+    }
+
+    if (t.restante[pos] >= restante)
+    {
+        return false;
+    }
+
+    if (t.restante[pos] < 0)
+    {
+        if (t.usados >= TAM_TABELA_DICA / 2)
+        {
+            t.cheia = true;
+
+            return false;
+        }
+
+        t.usados++;
+        t.chave[pos] = chave;
+    }
+
+    t.restante[pos] = restante;
+
+    return true;
+}
+
+bool buscaDica(Jogo j, int restante, TabelaEstados &t, char &tecla)
+{
+    if (!visitaEstado(t, j, restante))
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < TECLAS_DICA.length(); i++)
+    {
+        Jogo filho = j;
+
+        int resultado = processaTecla(filho, TECLAS_DICA[i]);
+
+        if (resultado == TECLA_VENCEU ||
+            (resultado == TECLA_OK && restante > 1 && buscaDica(filho, restante - 1, t, tecla)))
+        {
+            tecla = TECLAS_DICA[i];
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+char calculaDica(const Jogo &j)
+{
+    TabelaEstados tabela;
+    char tecla = FIM_DA_ENTRADA;
+
+    for (int i = 0; i < TAM_TABELA_DICA; i++)
+    {
+        tabela.restante[i] = -1;
+    }
+
+    tabela.usados = 0;
+    tabela.cheia = false;
+
+    for (int limite = 1; limite <= PROFUNDIDADE_DICA && !tabela.cheia; limite++)
+    {
+        int usadosAntes = tabela.usados;
+
+        if (buscaDica(j, limite, tabela, tecla))
+        {
+            return tecla;
+        }
+
+        if (tabela.usados == usadosAntes)
+        {
+            break;
+        }
+    }
+
+    return FIM_DA_ENTRADA;
 }
 
 void ordenaRecordes(Recorde v[], int qtd)
@@ -1675,6 +2059,20 @@ int carregaInfoMapas(InfoMapa mapas[], int max)
     return qtd;
 }
 
+bool gravaMapaEditado(Jogo j, int &numero, string &motivo)
+{
+    iniciaPartida(j);
+
+    if (!validaMapa(j, motivo))
+    {
+        return false;
+    }
+
+    numero = contaMapas() + 1;
+
+    return gravaMapa(numero, j, motivo);
+}
+
 bool reiniciaFase(Jogo &j, string &motivo)
 {
     return carregaMapaValido(j.numeroMapa, j, motivo);
@@ -1690,7 +2088,7 @@ string verificaMapa(int numero)
         return "indisponivel: " + motivo;
     }
 
-    if (!carregaSolucao(numero, teclas, motivo))
+    if (!carregaSolucao(numero, false, teclas, motivo))
     {
         return motivo;
     }
@@ -1751,6 +2149,20 @@ void registraVitoria(const Jogo &j)
     ordenaRecordes(recordes, qtd);
 
     exibeRecordes(recordes, qtd, j.numeroMapa);
+
+    if (teclasGravaveis(j) &&
+        confirma("Gravar as teclas desta partida em " + nomeArquivoSolucao(j.numeroMapa, true) + "?"))
+    {
+        if (gravaSolucao(j.numeroMapa, j.teclas, motivo))
+        {
+            aviso = "Partida gravada. Ela pode ser reproduzida em Ver solucao.";
+        }
+        else
+        {
+            aviso = "Nao foi possivel gravar a partida: " + motivo;
+        }
+    }
+
     exibeAviso(aviso);
 }
 
@@ -1777,6 +2189,15 @@ void jogarPartida(Jogo &j)
             {
                 exibeAviso("Nao foi possivel salvar o jogo: " + motivo);
             }
+        }
+        else if (tecla == 'h')
+        {
+            char dica = calculaDica(j);
+
+            if (dica == FIM_DA_ENTRADA)
+                aviso = "Sem dica: nao ha solucao a partir daqui ou ela esta alem do limite da busca.";
+            else
+                aviso = string("Dica: pressione ") + (char)toupper(dica) + ".";
         }
         else if (tecla == 'r')
         {
@@ -1886,11 +2307,14 @@ void opcaoVerSolucao()
     Jogo j;
     string teclas, motivo;
 
+    bool gravada = existeSolucaoGravada(escolha) &&
+                   confirma("Existe uma partida gravada neste mapa. Reproduzi-la no lugar da solucao do mapa?");
+
     if (!carregaMapaValido(escolha, j, motivo))
     {
         exibeAviso("Mapa indisponivel: " + motivo);
     }
-    else if (!carregaSolucao(escolha, teclas, motivo))
+    else if (!carregaSolucao(escolha, gravada, teclas, motivo))
     {
         exibeAviso("Nao ha solucao para reproduzir: " + motivo);
     }
@@ -1930,6 +2354,69 @@ void opcaoRecordes()
     exibeAviso("");
 }
 
+void opcaoEditor()
+{
+    exibeTitulo("EDITOR DE MAPAS");
+
+    int n = perguntaDimensao();
+
+    if (n == ESCOLHA_VOLTAR)
+    {
+        return;
+    }
+
+    Jogo j;
+    Posicao cursor = {1, 1};
+    string aviso;
+    bool editando = true;
+
+    iniciaEditor(j, n);
+
+    while (editando)
+    {
+        desenhaEditor(j, cursor, aviso);
+
+        aviso = "";
+
+        char tecla = tolower(leTecla());
+
+        if (tecla == FIM_DA_ENTRADA || (tecla == 27 && confirma("Sair sem gravar?")))
+        {
+            editando = false;
+        }
+        else if (tecla >= '0' && tecla <= '7')
+        {
+            colocaCodigo(j, cursor, tecla - '0');
+        }
+        else if (tecla == 'g')
+        {
+            j.titulo = leTituloMapa();
+
+            int numero;
+            string motivo;
+
+            if (j.titulo.empty())
+            {
+                aviso = "Gravacao cancelada.";
+            }
+            else if (gravaMapaEditado(j, numero, motivo))
+            {
+                exibeAviso("Mapa gravado em " + nomeArquivoMapa(numero, ".csv") + ".");
+
+                editando = false;
+            }
+            else
+            {
+                aviso = "Mapa recusado: " + motivo;
+            }
+        }
+        else
+        {
+            cursor = moveCursor(j, cursor, tecla);
+        }
+    }
+}
+
 int main()
 {
     srand((unsigned int)time(0));
@@ -1965,6 +2452,10 @@ int main()
 
         case 'r':
             opcaoRecordes();
+            break;
+
+        case 'm':
+            opcaoEditor();
             break;
 
         case 's':

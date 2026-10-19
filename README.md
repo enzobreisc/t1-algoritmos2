@@ -41,6 +41,7 @@ executado.
 | --------- | ----------------------------------------------------------- |
 | `W A S D` | Move o jogador uma celula por vez                           |
 | `Q` / `E` | Gira o cenario (anti-horario / horario) - so sobre alavanca |
+| `H`       | Dica: mostra a proxima tecla de uma solucao (desafio extra) |
 | `R`       | Reinicia a fase atual                                       |
 | `ESC`     | Salva a partida em `jogo_salvo.csv` e volta ao menu         |
 
@@ -51,8 +52,11 @@ executado.
 - `[C]` Continuar - aparece apenas quando existe um `jogo_salvo.csv` valido e
   retoma a partida, mesmo depois de fechar o programa
 - `[V]` Ver solucao - reproduz o `mapaN.sol` de um mapa (qualquer tecla
-  interrompe a reproducao) ou verifica todos
+  interrompe a reproducao) ou verifica todos. Se o mapa tem uma partida gravada
+  (`partidaN.sol`), pergunta qual das duas reproduzir
 - `[R]` Recordes - pergunta o mapa e mostra os 5 melhores resultados
+- `[M]` Editor de mapas - desenha um mapa e o grava como proximo `mapaN.csv`
+  (desafio extra)
 - `[S]` Sobre - dados da equipe e regras
 - `[F]` Fim - encerra o programa
 
@@ -123,16 +127,20 @@ numeroMapa,n,orientacao,movimentos,rotacoes
 titulo
 n linhas do terreno (codigos de 0 a 7 separados por virgula)
 n linhas do ocupante (0 = vazio, 2 = jogador, 3 = bloco)
+teclas ja jogadas (so W A S D Q E; pode ser uma linha vazia)
 ```
 
 Exemplo do cabecalho: `1,11,1,5,1` (mapa 1, 11x11, girado 90 graus, 5
 movimentos, 1 rotacao). Como o terreno e o ocupante sao gravados separados, o
 jogador sobre a alavanca volta exatamente como estava. A posicao do jogador nao
-e gravada: e recalculada a partir do ocupante.
+e gravada: e recalculada a partir do ocupante. A ultima linha guarda as teclas
+aceitas ate ali, para a gravacao de partida (desafio extra) continuar valendo
+depois do Continuar; um arquivo sem essa linha ainda e aceito, mas a partida
+nao poderia ser gravada depois (veja `teclasGravaveis`).
 
 Na leitura o arquivo e validado (cabecalho numerico, `n` de 11 a 21, orientacao
-de 0 a 3, quantidade de linhas e colunas, valores no intervalo e exatamente um
-jogador). Arquivo ausente, vazio ou corrompido conta como "sem jogo salvo", e a
+de 0 a 3, quantidade de linhas e colunas, valores no intervalo, exatamente um
+jogador e teclas validas). Arquivo ausente, vazio ou corrompido conta como "sem jogo salvo", e a
 opcao Continuar nao aparece.
 
 Quando o arquivo deixa de existir:
@@ -179,25 +187,28 @@ aparecem agrupados nesta mesma ordem:
 1. **Texto** - conversoes que nao sao nem tela nem arquivo (`converteInteiro`,
    `contaCaracteres`).
 2. **Tela** - so imprime e le o teclado, sem alterar o jogo (`desenhaJogo`,
-   `desenhaPartida`, `exibeMenu`, `exibeAviso`, `exibeVitoria`, `exibeRecordes`,
+   `desenhaEditor`, `simboloDaCelula`, `desenhaPartida`, `exibeMenu`, `exibeAviso`, `exibeVitoria`, `exibeRecordes`,
    `escolheMapa`, `leNomeJogador`, ...). Sao as unicas funcoes que usam `cout`.
 3. **Arquivo** - le ou grava, nao imprime, nao aplica regras e devolve `bool` +
    `string &motivo` quando pode falhar (`carregaMapa`, `carregaSolucao`,
-   `salvaJogo`, `carregaJogoSalvo`, `guardaPartida`, `registraRecorde`, `carregaRecordes`, ...).
+   `salvaJogo`, `carregaJogoSalvo`, `guardaPartida`, `registraRecorde`, `carregaRecordes`,
+   `gravaSolucao`, `gravaMapa`, ...).
    `carregaMapa` so confere o formato do arquivo; quem confere se o mapa e
    jogavel e `validaMapa`. Elas nao chamam nenhuma funcao de regra: o estado
    inicial (orientacao, contadores, posicao do jogador) e montado por
    `iniciaPartida` e `retomaPartida`, que sao regras.
 4. **Regra** - altera o `Jogo`, nao imprime e nao acessa arquivo (`processaTecla`,
    `moveJogador`, `giraCenario`, `aplicaGravidade`, `validaMapa`,
-   `ordenaRecordes`, `iniciaPartida`, `retomaPartida`, `montaRecorde`, ...).
+   `ordenaRecordes`, `iniciaPartida`, `retomaPartida`, `montaRecorde`, `calculaDica`,
+   `colocaCodigo`, ...).
    `processaTecla` e a unica porta de entrada das regras:
    o jogo pelo teclado e a reproducao do `.sol` chamam a mesma funcao.
 5. **Orquestracao** - ligam os outros papeis sem imprimir nada diretamente:
    `carregaMapaValido` (le o arquivo com `carregaMapa`, monta o estado com
    `iniciaPartida` e confere com `validaMapa`), `carregaInfoMapas`, `verificaMapa`, `reproduzSolucao`,
-   `registraVitoria`, `jogarPartida` e uma funcao por opcao do menu
-   (`opcaoNovoJogo`, `opcaoContinuar`, `opcaoVerSolucao`, `opcaoRecordes`). O
+   `gravaMapaEditado`, `registraVitoria`, `jogarPartida` e uma funcao por opcao do
+   menu (`opcaoNovoJogo`, `opcaoContinuar`, `opcaoVerSolucao`, `opcaoRecordes`,
+   `opcaoEditor`). O
    `main` so sorteia a semente e chama essas funcoes num `switch`.
 
 ## Arquivos
@@ -209,8 +220,10 @@ aparecem agrupados nesta mesma ordem:
 | `mapa1.sol` ... `mapaN.sol` | solucao de cada mapa                     |
 | `jogo_salvo.csv`            | partida salva com ESC (criado pelo jogo) |
 | `recordes.csv`              | uma linha por vitoria (criado pelo jogo) |
+| `partidaN.sol`              | partida gravada ao vencer (criado pelo jogo) |
 
-`jogo_salvo.csv` e `recordes.csv` ficam fora do repositorio (`.gitignore`).
+`jogo_salvo.csv`, `recordes.csv` e `partidaN.sol` ficam fora do repositorio
+(`.gitignore`).
 
 ## Defeitos da M1 corrigidos
 
@@ -297,4 +310,38 @@ precisa, sem o `Jogo`.
 
 ## Desafios extras
 
-Nenhum desafio extra do escopo foi implementado.
+Os tres desafios opcionais foram implementados.
+
+- **Dica automatica (`H`)** - `calculaDica` chama `buscaDica`, uma funcao
+  recursiva que recebe o `Jogo` **por valor**: cada tecla de `W A S D Q E` e
+  experimentada numa copia, sempre por `processaTecla` (nenhuma regra repetida).
+  A busca e por aprofundamento iterativo ate `PROFUNDIDADE_DICA` (100 teclas),
+  entao a dica e a primeira tecla de um caminho **mais curto** e dicas seguidas
+  nao andam em circulos. Estados repetidos sao controlados por uma tabela de
+  hash fixa (`TabelaEstados`, vetores simples, declarada em `calculaDica`) que
+  guarda quantas teclas ainda restavam quando o estado foi visitado; o estado e
+  so a orientacao e a matriz `ocupante` (o terreno depende da orientacao, e os
+  contadores nao mudam as possibilidades). A dica nao e um movimento e nao
+  altera a partida. Nos mapas 1 a 5, seguir a dica desde o inicio vence com o
+  mesmo numero de teclas do `.sol`, em menos de 0,05 s por dica. A busca tem
+  tres saidas, para nunca travar o jogo: acha a solucao; para quando uma
+  profundidade nao descobre nenhum estado novo (nao ha solucao); ou desiste
+  quando a tabela enche (metade de 65536 estados), caso em que mostra "sem
+  dica" mesmo havendo solucao. Em um mapa 21x21 com varias alavancas e blocos
+  isso levou menos de 1 s.
+- **Editor de mapas (`[M]`)** - escolhe-se a dimensao (11 a `TAM`) e desenha-se
+  com `W A S D` (cursor) e `0` a `7` (o codigo da celula, os mesmos do arquivo);
+  `G` grava e `ESC` sai. Antes de gravar, o mapa passa por `iniciaPartida` e
+  `validaMapa`, as mesmas funcoes usadas na leitura, e e recusado com o motivo se
+  tiver zero ou varios jogadores, nao tiver saida ou for instavel. O arquivo e
+  o proximo `mapaN.csv` (`contaMapas() + 1`), e `gravaMapa` nunca sobrescreve um
+  arquivo existente. Um mapa novo ainda precisa de `.sol` para passar em
+  "Verificar todos os mapas".
+- **Gravacao de partida** - `processaTecla` acrescenta cada tecla aceita a
+  `j.teclas` (que o `R` zera, pois recarrega o mapa, e o jogo salvo guarda).
+  Ao vencer, depois do ranking, o jogo oferece gravar as teclas em
+  `partidaN.sol`, no mesmo formato do `mapaN.sol`. O nome e outro de proposito:
+  assim uma vitoria nunca sobrescreve a solucao entregue do mapa. "Ver solucao"
+  pergunta qual das duas reproduzir. A gravacao so e oferecida se o numero de
+  teclas bate com movimentos + rotacoes (`teclasGravaveis`), o que deixa de valer
+  para um jogo salvo por versao antiga, sem as teclas.
