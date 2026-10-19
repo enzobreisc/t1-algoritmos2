@@ -163,7 +163,7 @@ void opcaoRecordes();
 
 bool converteInteiro(const string &texto, int &valor)
 {
-    if (texto.empty())
+    if (texto.empty() || texto.length() > 9)
     {
         return false;
     }
@@ -176,14 +176,7 @@ bool converteInteiro(const string &texto, int &valor)
         }
     }
 
-    try
-    {
-        valor = stoi(texto);
-    }
-    catch (...)
-    {
-        return false;
-    }
+    valor = stoi(texto);
 
     return true;
 }
@@ -1939,7 +1932,7 @@ void opcaoRecordes()
 
 int main()
 {
-    srand((unsigned int)time(nullptr));
+    srand((unsigned int)time(0));
 
     bool executando = true;
 
