@@ -17,6 +17,7 @@ const string ARQUIVO_JOGO_SALVO = "jogo_salvo.csv";
 const string ARQUIVO_RECORDES = "recordes.csv";
 const int MAX_RECORDES = 200;
 const int MAX_RECORDES_EXIBIDOS = 5;
+const char FIM_DA_ENTRADA = 0;
 
 #define VAZIO 0
 #define PAREDE 1
@@ -204,9 +205,18 @@ char leTecla()
 
     system("stty -icanon -echo");
 
-    ch = getchar();
+    int lido = getchar();
 
     system("stty icanon echo");
+
+    if (lido == EOF)
+    {
+        clearerr(stdin);
+
+        return FIM_DA_ENTRADA;
+    }
+
+    ch = (char)lido;
 
     return ch;
 }
@@ -1702,7 +1712,7 @@ void jogarPartida(Jogo &j)
 
         char tecla = tolower(leTecla());
 
-        if (tecla == 27)
+        if (tecla == 27 || tecla == FIM_DA_ENTRADA)
         {
             jogando = false;
 
@@ -1884,6 +1894,10 @@ int main()
 
         switch (tolower(leTecla()))
         {
+        case FIM_DA_ENTRADA:
+            executando = false;
+            break;
+
         case 'n':
             opcaoNovoJogo();
             break;
